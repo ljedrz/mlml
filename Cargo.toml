@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["mlml-dataset", "mlml-model"]
+
+[workspace.package]
+license = "CC0-1.0"
+readme = "README.md"

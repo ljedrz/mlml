@@ -1,0 +1,13 @@
+[package]
+name = "mlml-dataset"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+readme.workspace = true
+authors = ["ljedrz <ljedrz@gmail.com>"]
+
+[dependencies]
+csv = "1.3.1"
+rand = { version = "0.8", features = ["std_rng"] }
+rand_core = "0.9.3"
+rand_xorshift = "0.4.0"
