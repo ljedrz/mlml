@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use std::collections::HashSet;
 
 use crate::parser::Expr;
@@ -6,7 +5,6 @@ use rand::Rng;
 use rand::distributions::{Alphanumeric, Distribution, WeightedIndex};
 use rand::seq::IteratorRandom;
 
-// --- Generator ---
 pub struct ExprGenerator {
     max_depth: usize,
     max_vars: usize,
@@ -16,9 +14,11 @@ pub struct ExprGenerator {
 #[derive(Clone)]
 pub struct Weights {
     pub var: f32,
+    pub not: f32,
     pub and: f32,
     pub or: f32,
-    pub not: f32,
+    pub implies: f32,
+    pub equivalent: f32,
 }
 
 impl ExprGenerator {
@@ -54,9 +54,11 @@ impl ExprGenerator {
         // Choose production based on weights
         let choices = [
             ("var", self.weights.var),
+            ("not", self.weights.not),
             ("and", self.weights.and),
             ("or", self.weights.or),
-            ("not", self.weights.not),
+            ("impl", self.weights.implies),
+            ("equiv", self.weights.equivalent),
         ];
         let dist = WeightedIndex::new(choices.iter().map(|x| x.1)).unwrap();
         let choice = choices[dist.sample(&mut rng)].0;
@@ -71,7 +73,8 @@ impl ExprGenerator {
                     *vars.iter().choose(&mut rng).unwrap()
                 };
                 Expr::Var(var)
-            },
+            }
+            "not" => Expr::Not(Box::new(self.generate_with_depth(depth + 1, vars))),
             "and" => Expr::And(
                 Box::new(self.generate_with_depth(depth + 1, vars)),
                 Box::new(self.generate_with_depth(depth + 1, vars)),
@@ -80,7 +83,14 @@ impl ExprGenerator {
                 Box::new(self.generate_with_depth(depth + 1, vars)),
                 Box::new(self.generate_with_depth(depth + 1, vars)),
             ),
-            "not" => Expr::Not(Box::new(self.generate_with_depth(depth + 1, vars))),
+            "impl" => Expr::Implies(
+                Box::new(self.generate_with_depth(depth + 1, vars)),
+                Box::new(self.generate_with_depth(depth + 1, vars)),
+            ),
+            "equiv" => Expr::Equivalent(
+                Box::new(self.generate_with_depth(depth + 1, vars)),
+                Box::new(self.generate_with_depth(depth + 1, vars)),
+            ),
             _ => unreachable!(),
         }
     }
@@ -93,19 +103,20 @@ impl ExprGenerator {
             .next()
             .unwrap() as char;
         c.make_ascii_lowercase();
-        
+
         c
     }
 }
 
-// --- String Conversion ---
 impl Expr {
     pub fn to_string(&self) -> String {
         match self {
             Expr::Var(s) => s.to_string(),
+            Expr::Not(e) => format!("¬{}", e.to_string()),
             Expr::And(l, r) => format!("({} ∧ {})", l.to_string(), r.to_string()),
             Expr::Or(l, r) => format!("({} ∨ {})", l.to_string(), r.to_string()),
-            Expr::Not(e) => format!("¬{}", e.to_string()),
+            Expr::Implies(l, r) => format!("({} → {})", l.to_string(), r.to_string()),
+            Expr::Equivalent(l, r) => format!("({} ↔ {})", l.to_string(), r.to_string()),
         }
     }
 }

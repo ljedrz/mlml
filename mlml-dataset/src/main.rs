@@ -6,10 +6,12 @@ use crate::{generator::*, parser::*};
 fn main() {
     // Configure generator
     let weights = Weights {
-        var: 0.4, // 40% chance for variables
-        and: 0.2, // 20% chance for AND
-        or: 0.2,  // 20% chance for OR
-        not: 0.2, // 20% chance for NOT
+        var: 0.4,
+        not: 0.2,
+        and: 0.1,
+        or: 0.1,
+        implies: 0.1,
+        equivalent: 0.1,
     };
     let generator = ExprGenerator::new(2, 4, weights);
 

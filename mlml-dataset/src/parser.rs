@@ -3,9 +3,11 @@ use std::iter::Peekable;
 #[derive(Debug, Clone)]
 pub enum Expr {
     Var(char),
+    Not(Box<Expr>),
     And(Box<Expr>, Box<Expr>),
     Or(Box<Expr>, Box<Expr>),
-    Not(Box<Expr>),
+    Implies(Box<Expr>, Box<Expr>),
+    Equivalent(Box<Expr>, Box<Expr>),
 }
 
 pub struct Parser<'a> {
@@ -44,6 +46,8 @@ impl<'a> Parser<'a> {
         match op {
             '∧' => Ok(Expr::And(Box::new(left), Box::new(right))),
             '∨' => Ok(Expr::Or(Box::new(left), Box::new(right))),
+            '→' => Ok(Expr::Implies(Box::new(left), Box::new(right))),
+            '↔' => Ok(Expr::Equivalent(Box::new(left), Box::new(right))),
             _ => Err(format!("Unknown operator: {}", op)),
         }
     }
