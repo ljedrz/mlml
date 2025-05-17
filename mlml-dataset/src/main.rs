@@ -20,7 +20,7 @@ fn main() {
     let mut seen_exprs: HashSet<Expr> = HashSet::new();
 
     let mut i = 0;
-    while i < 100 {
+    while i < 12_000 {
         let expr = generator.generate();
         if seen_exprs.contains(&expr) {
             continue;
@@ -30,7 +30,7 @@ fn main() {
 
         let state = generate_state(&expr);
         let ret = evaluate(&expr, &state);
-        println!("{};{};{}", stringify_state(&state), expr_str, ret);
+        println!("{} {};{}", stringify_state(&state), expr_str, ret);
 
         seen_exprs.insert(expr);
         i += 1;
