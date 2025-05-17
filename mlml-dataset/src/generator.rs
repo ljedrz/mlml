@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::parser::Expr;
 use rand::Rng;
@@ -108,15 +108,23 @@ impl ExprGenerator {
     }
 }
 
-impl Expr {
-    pub fn to_string(&self) -> String {
-        match self {
-            Expr::Var(s) => s.to_string(),
-            Expr::Not(e) => format!("¬{}", e.to_string()),
-            Expr::And(l, r) => format!("({} ∧ {})", l.to_string(), r.to_string()),
-            Expr::Or(l, r) => format!("({} ∨ {})", l.to_string(), r.to_string()),
-            Expr::Implies(l, r) => format!("({} → {})", l.to_string(), r.to_string()),
-            Expr::Equivalent(l, r) => format!("({} ↔ {})", l.to_string(), r.to_string()),
+pub fn generate_state(expr: &Expr) -> HashMap<char, bool> {
+    let mut state = HashMap::new();
+    let mut rng = rand::thread_rng();
+    generate_state_recurse(expr, &mut state, &mut rng);
+
+    state
+}
+
+fn generate_state_recurse(expr: &Expr, state: &mut HashMap<char, bool>, rng: &mut impl Rng) {
+    match expr {
+        Expr::Var(c) => {
+            state.insert(*c, rng.gen_bool(0.5));
+        }
+        Expr::Not(e) => generate_state_recurse(e, state, rng),
+        Expr::And(l, r) | Expr::Or(l, r) | Expr::Implies(l, r) | Expr::Equivalent(l, r) => {
+            generate_state_recurse(l, state, rng);
+            generate_state_recurse(r, state, rng);
         }
     }
 }

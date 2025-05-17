@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     Var(char),
     Not(Box<Expr>),
@@ -8,6 +8,19 @@ pub enum Expr {
     Or(Box<Expr>, Box<Expr>),
     Implies(Box<Expr>, Box<Expr>),
     Equivalent(Box<Expr>, Box<Expr>),
+}
+
+impl Expr {
+    pub fn to_string(&self) -> String {
+        match self {
+            Expr::Var(s) => s.to_string(),
+            Expr::Not(e) => format!("¬{}", e.to_string()),
+            Expr::And(l, r) => format!("({} ∧ {})", l.to_string(), r.to_string()),
+            Expr::Or(l, r) => format!("({} ∨ {})", l.to_string(), r.to_string()),
+            Expr::Implies(l, r) => format!("({} → {})", l.to_string(), r.to_string()),
+            Expr::Equivalent(l, r) => format!("({} ↔ {})", l.to_string(), r.to_string()),
+        }
+    }
 }
 
 pub struct Parser<'a> {
@@ -63,9 +76,9 @@ impl<'a> Parser<'a> {
             if !c.is_alphabetic() {
                 return Err("Variable must start with a letter".to_string());
             }
-            return Ok(Expr::Var(c));
+            Ok(Expr::Var(c))
         } else {
-            Err(format!("Not a variable"))
+            unreachable!();
         }
     }
 
