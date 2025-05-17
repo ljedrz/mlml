@@ -1,0 +1,27 @@
+[package]
+name = "mlml-model"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+readme.workspace = true
+authors = ["ljedrz <ljedrz@gmail.com>"]
+
+[features]
+default = ["tch-cpu"]
+f16 = []
+flex32 = []
+tch-cpu = ["burn/tch"]
+
+[dependencies]
+burn = { version = "0.17", features = [
+    "train",
+    "tui",
+    "sqlite-bundled",
+    "metrics",
+    "autotune",
+    "fusion",
+    "std",
+], default-features = false }
+derive-new = { version = "0.7.0", default-features = false }
+serde = { version = "1.0.218", features = ["std", "derive"] }
+unicode-segmentation = "1.12"
