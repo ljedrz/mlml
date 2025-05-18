@@ -3,15 +3,17 @@
 // to work across thread boundaries.
 
 use std::collections::HashMap;
-use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug)]
 pub struct CharTokenizer {
     vocab: HashMap<String, usize>,     // Token to ID
     inv_vocab: HashMap<usize, String>, // ID to token
     max_seq_length: usize,
-    pad_token: usize,
 }
+
+const SYMBOLS: &[&str] = &["true", "false", "∧", "∨", "¬", "→", "↔"];
+const ALPHABET: &[&str] = &["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
+const MISC: &[&str] = &["[", "]", ":", ",", "(", ")"];
 
 #[allow(dead_code)]
 pub trait Tokenizer: Send + Sync {
@@ -36,11 +38,11 @@ pub trait Tokenizer: Send + Sync {
 
 impl CharTokenizer {
     fn new(max_seq_length: usize) -> Self {
-        let tokens = vec![
-            "<pad>", "<sep>", "<cls>", "[", "]", ":", ",", "(", ")", "a", "b", "c", "d", "e", "f",
-            "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w",
-            "x", "y", "z", "true", "false", "∧", "∨", "¬", "→", "↔",
-        ];
+        let mut tokens = vec!["<pad>"];
+        tokens.extend_from_slice(MISC);
+        tokens.extend_from_slice(SYMBOLS);
+        tokens.extend_from_slice(ALPHABET);
+
         let vocab: HashMap<String, usize> = tokens
             .iter()
             .enumerate()
@@ -55,14 +57,13 @@ impl CharTokenizer {
             vocab,
             inv_vocab,
             max_seq_length,
-            pad_token: 0,
         }
     }
 }
 
 impl Default for CharTokenizer {
     fn default() -> Self {
-        Self::new(256)
+        Self::new(60)
     }
 }
 
@@ -74,12 +75,12 @@ impl Tokenizer for CharTokenizer {
 
         while i < chars.len() {
             // Handle multi-char tokens (true, false, operators)
-            if i + 4 < chars.len() && &chars[i..i + 5] == ['t', 'r', 'u', 'e', ' '] {
+            if i + 3 < chars.len() && &chars[i..i + 4] == ['t', 'r', 'u', 'e'] {
                 tokens.push(self.vocab["true"]);
-                i += 5;
-            } else if i + 5 < chars.len() && &chars[i..i + 6] == ['f', 'a', 'l', 's', 'e', ' '] {
+                i += 4;
+            } else if i + 4 < chars.len() && &chars[i..i + 5] == ['f', 'a', 'l', 's', 'e'] {
                 tokens.push(self.vocab["false"]);
-                i += 6;
+                i += 5;
             } else if chars[i] == '∧'
                 || chars[i] == '∨'
                 || chars[i] == '¬'
@@ -89,7 +90,6 @@ impl Tokenizer for CharTokenizer {
                 tokens.push(self.vocab[&chars[i].to_string()]);
                 i += 1;
             } else if chars[i].is_whitespace() {
-                tokens.push(self.vocab["<sep>"]);
                 i += 1;
             } else {
                 // Single-char tokens (a, b, [, ], :, ,, (, ))
@@ -103,10 +103,6 @@ impl Tokenizer for CharTokenizer {
                 i += 1;
             }
         }
-
-        // Add <sep> and <cls>
-        tokens.push(self.vocab["<sep>"]);
-        tokens.push(self.vocab["<cls>"]);
 
         // Pad to max_seq_length
         while tokens.len() < self.max_seq_length {
@@ -122,7 +118,7 @@ impl Tokenizer for CharTokenizer {
             .map(|&id| {
                 self.inv_vocab
                     .get(&id)
-                    .unwrap_or(&"<unk>".to_string())
+                    .expect(&format!("missing token id: '{id}'"))
                     .clone()
             })
             .collect::<Vec<String>>()
