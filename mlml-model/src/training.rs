@@ -11,9 +11,9 @@ use crate::{
 };
 use burn::{
     data::{dataloader::DataLoaderBuilder, dataset::transform::SamplerDataset},
-    lr_scheduler::{self, cosine::CosineAnnealingLrSchedulerConfig, noam::NoamLrSchedulerConfig},
+    lr_scheduler::cosine::CosineAnnealingLrSchedulerConfig,
     nn::transformer::TransformerEncoderConfig,
-    optim::{AdamConfig, AdamWConfig},
+    optim::AdamWConfig,
     prelude::*,
     record::{CompactRecorder, Recorder},
     tensor::backend::AutodiffBackend,
@@ -79,12 +79,7 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
     let optim = config.optimizer.init();
 
     // Initialize learning rate scheduler
-    // let lr_scheduler = NoamLrSchedulerConfig::new(1e-2)
-    // .with_warmup_steps(1000)
-    // .with_model_size(config.transformer.d_model)
-    // .init()
-    // .unwrap();
-    let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(1e-4, 50)
+    let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(2e-5, 50)
         .init()
         .unwrap();
 
