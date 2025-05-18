@@ -108,18 +108,19 @@ impl ExprGenerator {
     }
 }
 
-pub fn generate_state(expr: &Expr) -> HashMap<char, bool> {
-    let mut state = HashMap::new();
+pub fn generate_state(expr: &Expr) -> Box<[(char, bool)]> {
+    let mut state = Vec::new();
     let mut rng = rand::thread_rng();
     generate_state_recurse(expr, &mut state, &mut rng);
+    state.sort_unstable_by_key(|(c, _)| *c);
 
-    state
+    state.into_boxed_slice()
 }
 
-fn generate_state_recurse(expr: &Expr, state: &mut HashMap<char, bool>, rng: &mut impl Rng) {
+fn generate_state_recurse(expr: &Expr, state: &mut Vec<(char, bool)>, rng: &mut impl Rng) {
     match expr {
         Expr::Var(c) => {
-            state.insert(*c, rng.gen_bool(0.5));
+            state.push((*c, rng.gen_bool(0.5)));
         }
         Expr::Not(e) => generate_state_recurse(e, state, rng),
         Expr::And(l, r) | Expr::Or(l, r) | Expr::Implies(l, r) | Expr::Equivalent(l, r) => {
