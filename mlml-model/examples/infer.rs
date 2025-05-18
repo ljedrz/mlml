@@ -27,12 +27,12 @@ mod tch_cpu {
 }
 
 fn main() {
-    let f = std::fs::read_to_string("/home/ljedrz/downloads/dev.csv").unwrap();
+    let f = std::fs::read_to_string("/home/ljedrz/git/ljedrz/mlml/mlml-dataset/test.csv").unwrap();
     let r = f.lines();
 
     let mut test_vector = vec![];
     for l in r.skip(1) {
-        let mut split = l.split("\t");
+        let mut split = l.split(";");
         let expr = split.next().unwrap().to_owned();
         let _res = split.next().unwrap();
         // test_vector.push((expr, res));

@@ -33,7 +33,7 @@ impl Dataset<TextClassificationItem> for DeductiveReasoningDataset {
     /// Returns a specific item from the dataset
     fn get(&self, index: usize) -> Option<TextClassificationItem> {
         self.dataset.get(index).map(|item| {
-            TextClassificationItem::new(item.expression, (item.result == "True") as usize)
+            TextClassificationItem::new(item.expression, (item.result == "true") as usize)
         }) // Map DeductiveReasoningItems to TextClassificationItems
     }
 

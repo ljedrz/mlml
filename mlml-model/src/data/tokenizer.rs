@@ -5,6 +5,14 @@
 use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation;
 
+#[derive(Debug)]
+pub struct CharTokenizer {
+    vocab: HashMap<String, usize>,     // Token to ID
+    inv_vocab: HashMap<usize, String>, // ID to token
+    max_seq_length: usize,
+    pad_token: usize,
+}
+
 #[allow(dead_code)]
 pub trait Tokenizer: Send + Sync {
     /// Converts a text string into a sequence of tokens.
@@ -26,65 +34,107 @@ pub trait Tokenizer: Send + Sync {
     }
 }
 
-pub struct CharTokenizer {
-    vocab: HashMap<String, usize>,
-    inv_vocab: Vec<String>,
-    pad_token: usize,
-}
-
-impl Default for CharTokenizer {
-    fn default() -> Self {
-        let data = [" (),:[]abcdefghijklmnopqrstuvwxyz¬→↔∧∨"];
-        CharTokenizer::from_dataset(&data, "␣")
-    }
-}
-
 impl CharTokenizer {
-    pub fn from_dataset(dataset: &[&str], pad_token_str: &str) -> Self {
-        let mut vocab = HashMap::new();
-        let mut inv_vocab = Vec::new();
-
-        // Insert padding token first
-        vocab.insert(pad_token_str.to_string(), 0);
-        inv_vocab.push(pad_token_str.to_string());
-
-        for entry in dataset {
-            for g in entry.graphemes(true) {
-                if !vocab.contains_key(g) {
-                    vocab.insert(g.to_string(), inv_vocab.len());
-                    inv_vocab.push(g.to_string());
-                }
-            }
-        }
-
-        Self {
+    fn new(max_seq_length: usize) -> Self {
+        let tokens = vec![
+            "<pad>", "<sep>", "<cls>", "[", "]", ":", ",", "(", ")", "a", "b", "c", "d", "e", "f",
+            "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w",
+            "x", "y", "z", "true", "false", "∧", "∨", "¬", "→", "↔",
+        ];
+        let vocab: HashMap<String, usize> = tokens
+            .iter()
+            .enumerate()
+            .map(|(i, &t)| (t.to_string(), i))
+            .collect();
+        let inv_vocab: HashMap<usize, String> = tokens
+            .iter()
+            .enumerate()
+            .map(|(i, &t)| (i, t.to_string()))
+            .collect();
+        CharTokenizer {
             vocab,
             inv_vocab,
+            max_seq_length,
             pad_token: 0,
         }
     }
 }
 
+impl Default for CharTokenizer {
+    fn default() -> Self {
+        Self::new(256)
+    }
+}
+
 impl Tokenizer for CharTokenizer {
-    fn encode(&self, value: &str) -> Vec<usize> {
-        value
-            .graphemes(true)
-            .map(|g| *self.vocab.get(g).unwrap_or(&self.pad_token)) // unknowns go to pad token
-            .collect()
-    }
+    fn encode(&self, input: &str) -> Vec<usize> {
+        let mut tokens = Vec::new();
+        let mut i = 0;
+        let chars: Vec<char> = input.chars().collect();
 
-    fn decode(&self, tokens: &[usize]) -> String {
+        while i < chars.len() {
+            // Handle multi-char tokens (true, false, operators)
+            if i + 4 < chars.len() && &chars[i..i + 5] == ['t', 'r', 'u', 'e', ' '] {
+                tokens.push(self.vocab["true"]);
+                i += 5;
+            } else if i + 5 < chars.len() && &chars[i..i + 6] == ['f', 'a', 'l', 's', 'e', ' '] {
+                tokens.push(self.vocab["false"]);
+                i += 6;
+            } else if chars[i] == '∧'
+                || chars[i] == '∨'
+                || chars[i] == '¬'
+                || chars[i] == '→'
+                || chars[i] == '↔'
+            {
+                tokens.push(self.vocab[&chars[i].to_string()]);
+                i += 1;
+            } else if chars[i].is_whitespace() {
+                tokens.push(self.vocab["<sep>"]);
+                i += 1;
+            } else {
+                // Single-char tokens (a, b, [, ], :, ,, (, ))
+                let c = chars[i].to_string();
+                tokens.push(
+                    self.vocab
+                        .get(&c)
+                        .copied()
+                        .expect(&format!("missing token: '{c}'")),
+                );
+                i += 1;
+            }
+        }
+
+        // Add <sep> and <cls>
+        tokens.push(self.vocab["<sep>"]);
+        tokens.push(self.vocab["<cls>"]);
+
+        // Pad to max_seq_length
+        while tokens.len() < self.max_seq_length {
+            tokens.push(self.vocab["<pad>"]);
+        }
+        tokens.truncate(self.max_seq_length);
         tokens
-            .iter()
-            .map(|&id| self.inv_vocab.get(id).cloned().unwrap_or("?".to_string()))
-            .collect()
     }
 
+    fn decode(&self, token_ids: &[usize]) -> String {
+        token_ids
+            .iter()
+            .map(|&id| {
+                self.inv_vocab
+                    .get(&id)
+                    .unwrap_or(&"<unk>".to_string())
+                    .clone()
+            })
+            .collect::<Vec<String>>()
+            .join(" ")
+    }
+
+    /// Gets the size of the tokenizer's vocabulary.
     fn vocab_size(&self) -> usize {
         self.inv_vocab.len()
     }
 
     fn pad_token(&self) -> usize {
-        self.pad_token
+        0
     }
 }

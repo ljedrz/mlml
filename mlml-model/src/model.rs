@@ -89,6 +89,8 @@ impl<B: Backend> TextClassificationModel<B> {
             .reshape([batch_size, self.n_classes]);
 
         let loss = CrossEntropyLossConfig::new()
+            .with_smoothing(Some(0.1))
+            .with_weights(Some(vec![0.5, 0.5]))
             .init(&output_classification.device())
             .forward(output_classification.clone(), labels.clone());
 

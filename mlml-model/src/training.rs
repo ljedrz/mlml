@@ -11,15 +11,18 @@ use crate::{
 };
 use burn::{
     data::{dataloader::DataLoaderBuilder, dataset::transform::SamplerDataset},
-    lr_scheduler::noam::NoamLrSchedulerConfig,
+    lr_scheduler::{self, cosine::CosineAnnealingLrSchedulerConfig, noam::NoamLrSchedulerConfig},
     nn::transformer::TransformerEncoderConfig,
-    optim::AdamWConfig,
+    optim::{AdamConfig, AdamWConfig},
     prelude::*,
     record::{CompactRecorder, Recorder},
     tensor::backend::AutodiffBackend,
     train::{
-        LearnerBuilder,
-        metric::{AccuracyMetric, IterationSpeedMetric, LearningRateMetric, LossMetric},
+        LearnerBuilder, MetricEarlyStoppingStrategy, StoppingCondition,
+        metric::{
+            AccuracyMetric, IterationSpeedMetric, LearningRateMetric, LossMetric,
+            store::{Aggregate, Direction, Split},
+        },
     },
 };
 use std::sync::Arc;
@@ -31,9 +34,9 @@ pub struct ExperimentConfig {
     pub optimizer: AdamWConfig,
     #[config(default = 256)]
     pub max_seq_length: usize,
-    #[config(default = 32)]
+    #[config(default = 64)]
     pub batch_size: usize,
-    #[config(default = 20)]
+    #[config(default = 50)]
     pub num_epochs: usize,
 }
 
@@ -65,7 +68,7 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
         .batch_size(config.batch_size)
         .num_workers(1)
         .shuffle(1234567) // FIXME
-        .build(SamplerDataset::new(dataset_train, 10_000));
+        .build(SamplerDataset::new(dataset_train, 8_500));
     let dataloader_test = DataLoaderBuilder::new(batcher)
         .batch_size(config.batch_size)
         .num_workers(1)
@@ -76,10 +79,22 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
     let optim = config.optimizer.init();
 
     // Initialize learning rate scheduler
-    let lr_scheduler = NoamLrSchedulerConfig::new(5e-4)
-        .with_model_size(config.transformer.d_model)
+    // let lr_scheduler = NoamLrSchedulerConfig::new(1e-2)
+    // .with_warmup_steps(1000)
+    // .with_model_size(config.transformer.d_model)
+    // .init()
+    // .unwrap();
+    let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(1e-4, 50)
         .init()
         .unwrap();
+
+    let early_stopping = MetricEarlyStoppingStrategy::new(
+        &AccuracyMetric::<B>::new(),
+        Aggregate::Mean,
+        Direction::Highest,
+        Split::Valid,
+        StoppingCondition::NoImprovementSince { n_epochs: 10 },
+    );
 
     // Initialize learner
     let learner = LearnerBuilder::new(artifact_dir)
@@ -92,6 +107,7 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
         .with_file_checkpointer(CompactRecorder::new())
         .devices(devices)
         .num_epochs(config.num_epochs)
+        .early_stopping(early_stopping)
         .summary()
         .build(model, optim, lr_scheduler);
 

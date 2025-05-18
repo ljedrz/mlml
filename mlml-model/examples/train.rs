@@ -1,7 +1,9 @@
 #![recursion_limit = "256"]
 
 use burn::{
-    nn::transformer::TransformerEncoderConfig, optim::AdamWConfig, tensor::backend::AutodiffBackend,
+    nn::transformer::TransformerEncoderConfig,
+    optim::{AdamConfig, AdamWConfig, decay::WeightDecayConfig},
+    tensor::backend::AutodiffBackend,
 };
 
 use mlml_model::{DeductiveReasoningDataset, training::ExperimentConfig};
@@ -12,11 +14,12 @@ type ElemType = f32;
 
 pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>) {
     let config = ExperimentConfig::new(
-        TransformerEncoderConfig::new(256, 512, 8, 4)
-            .with_dropout(0.2)
-            .with_norm_first(true),
-        // .with_quiet_softmax(true),
-        AdamWConfig::new().with_weight_decay(0.01),
+        TransformerEncoderConfig::new(256, 512, 4, 3)
+            .with_dropout(0.3)
+            .with_norm_first(true)
+            .with_quiet_softmax(true),
+        AdamWConfig::new().with_weight_decay(1e-1),
+        // AdamConfig::new().with_weight_decay(Some(WeightDecayConfig::new(1e-4))),
     );
 
     mlml_model::training::train::<B, DeductiveReasoningDataset>(
