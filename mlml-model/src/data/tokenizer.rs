@@ -11,13 +11,22 @@ pub struct CharTokenizer {
     max_seq_length: usize,
 }
 
-const SYMBOLS: &[&str] = &["true", "false", "∧", "∨", "¬", "→", "↔"];
+const VALUES: &[&str] = &["true", "false"];
+const OPERATORS: &[&str] = &["∧", "∨", "¬", "→", "↔"];
 const ALPHABET: &[&str] = &[
     "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s",
     "t", "u", "v", "w", "x", "y", "z",
 ];
 const MISC: &[&str] = &["[", "]", ":", ",", "(", ")"];
-const STRUCT: &[&str] = &["<pad>", "<state_start>", "<state_end>", "<assign_start>", "<assign_end>", "<expr_start>", "<expr_end>"];
+const STRUCT: &[&str] = &[
+    "<pad>",
+    "<state_start>",
+    "<state_end>",
+    "<assign_start>",
+    "<assign_end>",
+    "<expr_start>",
+    "<expr_end>",
+];
 
 #[allow(dead_code)]
 pub trait Tokenizer: Send + Sync {
@@ -44,7 +53,8 @@ impl CharTokenizer {
     fn new(max_seq_length: usize) -> Self {
         let mut tokens = STRUCT.to_vec();
         tokens.extend_from_slice(MISC);
-        tokens.extend_from_slice(SYMBOLS);
+        tokens.extend_from_slice(VALUES);
+        tokens.extend_from_slice(OPERATORS);
         tokens.extend_from_slice(ALPHABET);
 
         let vocab: HashMap<String, usize> = tokens
@@ -77,6 +87,7 @@ impl Tokenizer for CharTokenizer {
         let mut i = 0;
         let chars: Vec<char> = input.chars().collect();
 
+        let mut in_state = false;
         let mut in_expr = false;
         let mut in_assignment = false;
 
@@ -96,32 +107,31 @@ impl Tokenizer for CharTokenizer {
                     in_assignment = false;
                 }
                 i += 5;
-            } else if chars[i] == '∧'
-                || chars[i] == '∨'
-                || chars[i] == '¬'
-                || chars[i] == '→'
-                || chars[i] == '↔'
-            {
+            } else if OPERATORS.contains(&&*chars[i].to_string()) {
                 tokens.push(self.vocab[&chars[i].to_string()]);
                 i += 1;
             } else if chars[i].is_whitespace() {
                 i += 1;
             } else if chars[i] == '[' {
+                in_state = true;
                 tokens.push(self.vocab["<state_start>"]);
                 i += 1;
             } else if chars[i] == ']' {
                 tokens.push(self.vocab["<state_end>"]);
+                in_state = false;
                 tokens.push(self.vocab["<expr_start>"]);
                 in_expr = true;
                 i += 1;
             } else if ALPHABET.contains(&&*chars[i].to_string()) {
-                in_assignment = true;
-                tokens.push(self.vocab["<assign_start>"]);
+                if in_state {
+                    in_assignment = true;
+                    tokens.push(self.vocab["<assign_start>"]);
+                }
                 tokens.push(
                     self.vocab
                         .get(&chars[i].to_string())
                         .copied()
-                        .expect(&format!("missing token: '{}'", chars[i]))
+                        .expect(&format!("missing token: '{}'", chars[i])),
                 );
                 i += 1;
             } else {
@@ -169,5 +179,19 @@ impl Tokenizer for CharTokenizer {
 
     fn pad_token(&self) -> usize {
         0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tokenizer() {
+        let expr_with_state_str = "[m: false, q: false, t: true, t: true, t: false, w: true, x: false, y: false] (((w → t) ∧ (x ∧ t)) ∨ ((q → y) ∧ (m ↔ t)))";
+        let tokenizer = CharTokenizer::default();
+        let tokens = tokenizer.encode(expr_with_state_str);
+        let decoded = tokenizer.decode(&tokens);
+        println!("{decoded}");
     }
 }
