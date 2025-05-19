@@ -36,9 +36,9 @@ pub struct ExperimentConfig {
     pub batch_size: usize,
     #[config(default = 20)]
     pub num_epochs: usize,
-    #[config(default = 15_000)]
+    #[config(default = 10_000)]
     pub train_samples: usize,
-    #[config(default = 1_500)]
+    #[config(default = 1_000)]
     pub valid_samples: usize,
 }
 

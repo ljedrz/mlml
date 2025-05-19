@@ -15,8 +15,8 @@ struct Entry {
     ret: bool,
 }
 
-const SAMPLES_TRAIN: usize = 15_000;
-const SAMPLES_VALID: usize = 1_500;
+const SAMPLES_TRAIN: usize = 10_000;
+const SAMPLES_VALID: usize = SAMPLES_TRAIN / 10;
 const MAX_VARS: usize = 5;
 const MAX_DEPTH: usize = 2;
 
