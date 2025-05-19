@@ -4,10 +4,28 @@ use std::iter::Peekable;
 pub enum Expr {
     Var(char),
     Not(Box<Expr>),
-    And(Box<Expr>, Box<Expr>),
-    Or(Box<Expr>, Box<Expr>),
-    Implies(Box<Expr>, Box<Expr>),
-    Equivalent(Box<Expr>, Box<Expr>),
+    BinaryOp(Box<BinaryOp>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum BinaryOpType {
+    And,
+    Or,
+    Implies,
+    Equivalent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BinaryOp {
+    pub ty: BinaryOpType,
+    pub l: Expr,
+    pub r: Expr,
+}
+
+impl BinaryOp {
+    pub fn new(ty: BinaryOpType, l: Expr, r: Expr) -> Self {
+        Self { ty, l, r }
+    }
 }
 
 impl Expr {
@@ -15,10 +33,14 @@ impl Expr {
         match self {
             Expr::Var(s) => s.to_string(),
             Expr::Not(e) => format!("¬{}", e.to_string()),
-            Expr::And(l, r) => format!("({} ∧ {})", l.to_string(), r.to_string()),
-            Expr::Or(l, r) => format!("({} ∨ {})", l.to_string(), r.to_string()),
-            Expr::Implies(l, r) => format!("({} → {})", l.to_string(), r.to_string()),
-            Expr::Equivalent(l, r) => format!("({} ↔ {})", l.to_string(), r.to_string()),
+            Expr::BinaryOp(bop) => match bop.ty {
+                BinaryOpType::And => format!("({} ∧ {})", bop.l.to_string(), bop.r.to_string()),
+                BinaryOpType::Or => format!("({} ∨ {})", bop.l.to_string(), bop.r.to_string()),
+                BinaryOpType::Implies => format!("({} → {})", bop.l.to_string(), bop.r.to_string()),
+                BinaryOpType::Equivalent => {
+                    format!("({} ↔ {})", bop.l.to_string(), bop.r.to_string())
+                }
+            },
         }
     }
 }
@@ -57,10 +79,26 @@ impl<'a> Parser<'a> {
         self.skip_whitespace();
         self.expect(')')?;
         match op {
-            '∧' => Ok(Expr::And(Box::new(left), Box::new(right))),
-            '∨' => Ok(Expr::Or(Box::new(left), Box::new(right))),
-            '→' => Ok(Expr::Implies(Box::new(left), Box::new(right))),
-            '↔' => Ok(Expr::Equivalent(Box::new(left), Box::new(right))),
+            '∧' => Ok(Expr::BinaryOp(Box::new(BinaryOp::new(
+                BinaryOpType::And,
+                left,
+                right,
+            )))),
+            '∨' => Ok(Expr::BinaryOp(Box::new(BinaryOp::new(
+                BinaryOpType::Or,
+                left,
+                right,
+            )))),
+            '→' => Ok(Expr::BinaryOp(Box::new(BinaryOp::new(
+                BinaryOpType::Implies,
+                left,
+                right,
+            )))),
+            '↔' => Ok(Expr::BinaryOp(Box::new(BinaryOp::new(
+                BinaryOpType::Equivalent,
+                left,
+                right,
+            )))),
             _ => Err(format!("Unknown operator: {}", op)),
         }
     }

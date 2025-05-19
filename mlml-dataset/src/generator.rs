@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-use crate::parser::Expr;
+use crate::parser::{BinaryOp, BinaryOpType, Expr};
 use rand::Rng;
 use rand::distributions::{Alphanumeric, Distribution, WeightedIndex};
 use rand::seq::IteratorRandom;
@@ -75,22 +75,26 @@ impl ExprGenerator {
                 Expr::Var(var)
             }
             "not" => Expr::Not(Box::new(self.generate_with_depth(depth + 1, vars))),
-            "and" => Expr::And(
-                Box::new(self.generate_with_depth(depth + 1, vars)),
-                Box::new(self.generate_with_depth(depth + 1, vars)),
-            ),
-            "or" => Expr::Or(
-                Box::new(self.generate_with_depth(depth + 1, vars)),
-                Box::new(self.generate_with_depth(depth + 1, vars)),
-            ),
-            "impl" => Expr::Implies(
-                Box::new(self.generate_with_depth(depth + 1, vars)),
-                Box::new(self.generate_with_depth(depth + 1, vars)),
-            ),
-            "equiv" => Expr::Equivalent(
-                Box::new(self.generate_with_depth(depth + 1, vars)),
-                Box::new(self.generate_with_depth(depth + 1, vars)),
-            ),
+            "and" => Expr::BinaryOp(Box::new(BinaryOp::new(
+                BinaryOpType::And,
+                self.generate_with_depth(depth + 1, vars),
+                self.generate_with_depth(depth + 1, vars),
+            ))),
+            "or" => Expr::BinaryOp(Box::new(BinaryOp::new(
+                BinaryOpType::Or,
+                self.generate_with_depth(depth + 1, vars),
+                self.generate_with_depth(depth + 1, vars),
+            ))),
+            "impl" => Expr::BinaryOp(Box::new(BinaryOp::new(
+                BinaryOpType::Implies,
+                self.generate_with_depth(depth + 1, vars),
+                self.generate_with_depth(depth + 1, vars),
+            ))),
+            "equiv" => Expr::BinaryOp(Box::new(BinaryOp::new(
+                BinaryOpType::Equivalent,
+                self.generate_with_depth(depth + 1, vars),
+                self.generate_with_depth(depth + 1, vars),
+            ))),
             _ => unreachable!(),
         }
     }
@@ -123,7 +127,8 @@ fn generate_state_recurse(expr: &Expr, state: &mut Vec<(char, bool)>, rng: &mut 
             state.push((*c, rng.gen_bool(0.5)));
         }
         Expr::Not(e) => generate_state_recurse(e, state, rng),
-        Expr::And(l, r) | Expr::Or(l, r) | Expr::Implies(l, r) | Expr::Equivalent(l, r) => {
+        Expr::BinaryOp(bop) => {
+            let BinaryOp { ty: _, l, r } = &**bop;
             generate_state_recurse(l, state, rng);
             generate_state_recurse(r, state, rng);
         }

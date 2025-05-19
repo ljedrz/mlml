@@ -17,6 +17,7 @@ const ALPHABET: &[&str] = &[
     "t", "u", "v", "w", "x", "y", "z",
 ];
 const MISC: &[&str] = &["[", "]", ":", ",", "(", ")"];
+const STRUCT: &[&str] = &["<pad>", "<state_start>", "<state_end>", "<assign_start>", "<assign_end>", "<expr_start>", "<expr_end>"];
 
 #[allow(dead_code)]
 pub trait Tokenizer: Send + Sync {
@@ -41,7 +42,7 @@ pub trait Tokenizer: Send + Sync {
 
 impl CharTokenizer {
     fn new(max_seq_length: usize) -> Self {
-        let mut tokens = vec!["<pad>"];
+        let mut tokens = STRUCT.to_vec();
         tokens.extend_from_slice(MISC);
         tokens.extend_from_slice(SYMBOLS);
         tokens.extend_from_slice(ALPHABET);
@@ -76,13 +77,24 @@ impl Tokenizer for CharTokenizer {
         let mut i = 0;
         let chars: Vec<char> = input.chars().collect();
 
+        let mut in_expr = false;
+        let mut in_assignment = false;
+
         while i < chars.len() {
             // Handle multi-char tokens (true, false, operators)
             if i + 3 < chars.len() && &chars[i..i + 4] == ['t', 'r', 'u', 'e'] {
                 tokens.push(self.vocab["true"]);
+                if in_assignment {
+                    tokens.push(self.vocab["<assign_end>"]);
+                    in_assignment = false;
+                }
                 i += 4;
             } else if i + 4 < chars.len() && &chars[i..i + 5] == ['f', 'a', 'l', 's', 'e'] {
                 tokens.push(self.vocab["false"]);
+                if in_assignment {
+                    tokens.push(self.vocab["<assign_end>"]);
+                    in_assignment = false;
+                }
                 i += 5;
             } else if chars[i] == '∧'
                 || chars[i] == '∨'
@@ -94,8 +106,26 @@ impl Tokenizer for CharTokenizer {
                 i += 1;
             } else if chars[i].is_whitespace() {
                 i += 1;
+            } else if chars[i] == '[' {
+                tokens.push(self.vocab["<state_start>"]);
+                i += 1;
+            } else if chars[i] == ']' {
+                tokens.push(self.vocab["<state_end>"]);
+                tokens.push(self.vocab["<expr_start>"]);
+                in_expr = true;
+                i += 1;
+            } else if ALPHABET.contains(&&*chars[i].to_string()) {
+                in_assignment = true;
+                tokens.push(self.vocab["<assign_start>"]);
+                tokens.push(
+                    self.vocab
+                        .get(&chars[i].to_string())
+                        .copied()
+                        .expect(&format!("missing token: '{}'", chars[i]))
+                );
+                i += 1;
             } else {
-                // Single-char tokens (a, b, [, ], :, ,, (, ))
+                // Remaining single-char tokens
                 let c = chars[i].to_string();
                 tokens.push(
                     self.vocab
@@ -105,6 +135,10 @@ impl Tokenizer for CharTokenizer {
                 );
                 i += 1;
             }
+        }
+
+        if in_expr {
+            tokens.push(self.vocab["<expr_end>"]);
         }
 
         // Pad to max_seq_length
