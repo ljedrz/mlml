@@ -1,8 +1,8 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::RangeInclusive};
 
 use crate::parser::{BinaryOp, BinaryOpType, Expr};
 use rand::Rng;
-use rand::distributions::{Alphanumeric, Distribution, WeightedIndex};
+use rand::distributions::{Distribution, WeightedIndex};
 use rand::seq::IteratorRandom;
 
 pub struct ExprGenerator {
@@ -30,18 +30,23 @@ impl ExprGenerator {
         }
     }
 
-    pub fn generate(&self) -> Expr {
+    pub fn generate(&self, range: &RangeInclusive<char>) -> Expr {
         let mut vars = HashSet::new();
-        self.generate_with_depth(0, &mut vars)
+        self.generate_with_depth(0, range, &mut vars)
     }
 
-    fn generate_with_depth(&self, depth: usize, vars: &mut HashSet<char>) -> Expr {
+    fn generate_with_depth(
+        &self,
+        depth: usize,
+        range: &RangeInclusive<char>,
+        vars: &mut HashSet<char>,
+    ) -> Expr {
         let mut rng = rand::thread_rng();
 
         // At max depth, only generate variables
         if depth >= self.max_depth {
             let var = if vars.len() < self.max_vars {
-                let v = self.random_variable(&mut rng);
+                let v = self.random_variable(&range, &mut rng);
                 vars.insert(v);
                 v
             } else {
@@ -66,7 +71,7 @@ impl ExprGenerator {
         match choice {
             "var" => {
                 let var = if vars.len() < self.max_vars {
-                    let v = self.random_variable(&mut rng);
+                    let v = self.random_variable(range, &mut rng);
                     vars.insert(v);
                     v
                 } else {
@@ -74,41 +79,33 @@ impl ExprGenerator {
                 };
                 Expr::Var(var)
             }
-            "not" => Expr::Not(Box::new(self.generate_with_depth(depth + 1, vars))),
+            "not" => Expr::Not(Box::new(self.generate_with_depth(depth + 1, &range, vars))),
             "and" => Expr::BinaryOp(Box::new(BinaryOp::new(
                 BinaryOpType::And,
-                self.generate_with_depth(depth + 1, vars),
-                self.generate_with_depth(depth + 1, vars),
+                self.generate_with_depth(depth + 1, &range, vars),
+                self.generate_with_depth(depth + 1, &range, vars),
             ))),
             "or" => Expr::BinaryOp(Box::new(BinaryOp::new(
                 BinaryOpType::Or,
-                self.generate_with_depth(depth + 1, vars),
-                self.generate_with_depth(depth + 1, vars),
+                self.generate_with_depth(depth + 1, &range, vars),
+                self.generate_with_depth(depth + 1, &range, vars),
             ))),
             "impl" => Expr::BinaryOp(Box::new(BinaryOp::new(
                 BinaryOpType::Implies,
-                self.generate_with_depth(depth + 1, vars),
-                self.generate_with_depth(depth + 1, vars),
+                self.generate_with_depth(depth + 1, &range, vars),
+                self.generate_with_depth(depth + 1, &range, vars),
             ))),
             "equiv" => Expr::BinaryOp(Box::new(BinaryOp::new(
                 BinaryOpType::Equivalent,
-                self.generate_with_depth(depth + 1, vars),
-                self.generate_with_depth(depth + 1, vars),
+                self.generate_with_depth(depth + 1, &range, vars),
+                self.generate_with_depth(depth + 1, &range, vars),
             ))),
             _ => unreachable!(),
         }
     }
 
-    fn random_variable(&self, rng: &mut impl Rng) -> char {
-        let mut c = rng
-            .sample_iter(&Alphanumeric)
-            .filter(|c| (*c as char).is_alphabetic())
-            .take(1)
-            .next()
-            .unwrap() as char;
-        c.make_ascii_lowercase();
-
-        c
+    fn random_variable(&self, range: &RangeInclusive<char>, rng: &mut impl Rng) -> char {
+        range.clone().choose(rng).unwrap()
     }
 }
 
@@ -116,15 +113,16 @@ pub fn generate_state(expr: &Expr) -> Box<[(char, bool)]> {
     let mut state = Vec::new();
     let mut rng = rand::thread_rng();
     generate_state_recurse(expr, &mut state, &mut rng);
-    state.sort_unstable_by_key(|(c, _)| *c);
 
     state.into_boxed_slice()
 }
 
 fn generate_state_recurse(expr: &Expr, state: &mut Vec<(char, bool)>, rng: &mut impl Rng) {
     match expr {
-        Expr::Var(c) => {
-            state.push((*c, rng.gen_bool(0.5)));
+        Expr::Var(v) => {
+            if state.iter().map(|(c, _)| c).find(|c| *c == v).is_none() {
+                state.push((*v, rng.gen_bool(0.5)));
+            }
         }
         Expr::Not(e) => generate_state_recurse(e, state, rng),
         Expr::BinaryOp(bop) => {

@@ -15,6 +15,9 @@ struct Entry {
     ret: bool,
 }
 
+const SAMPLES_TRAIN: usize = 25_000;
+const SAMPLES_VALID: usize = 2_500;
+
 fn main() {
     let weights = Weights {
         var: 0.2,
@@ -26,61 +29,50 @@ fn main() {
     };
     let generator = ExprGenerator::new(3, 6, weights);
 
-    let mut seen_entries: HashSet<Entry> = HashSet::new();
-
-    let mut i = 0;
-    while i < 50_000 {
-        let expr = generator.generate();
-        let expr_str = expr.to_string();
-        assert!(Parser::new(&expr_str).parse().is_ok());
-
-        let state = generate_state(&expr);
-        let ret = evaluate(&expr, &state);
-        let entry = Entry { expr, state, ret };
-
-        if seen_entries.contains(&entry) {
-            continue;
-        }
-
-        seen_entries.insert(entry);
-        i += 1;
-    }
+    let mut seen_train: HashSet<Entry> = HashSet::new();
+    let mut seen_valid: HashSet<Entry> = HashSet::new();
+    let mut set_train = HashSet::new();
+    let mut set_valid = HashSet::new();
 
     let mut rng = rand::thread_rng();
+    for ty in ["train", "valid"] {
+        let (seen, set, range, samples) = match ty {
+            "train" => (&mut seen_train, &mut set_train, 'a'..='e', SAMPLES_TRAIN),
+            "valid" => (&mut seen_valid, &mut set_valid, 'p'..='t', SAMPLES_VALID),
+            _ => unreachable!(),
+        };
 
-    // train
-    let mut train_set = HashSet::new();
-    train_set.extend(
-        seen_entries
-            .iter()
-            .filter(|e| e.ret)
-            .cloned()
-            .choose_multiple(&mut rng, 12_500),
-    );
-    train_set.extend(
-        seen_entries
-            .iter()
-            .filter(|e| !e.ret)
-            .cloned()
-            .choose_multiple(&mut rng, 12_500),
-    );
+        let mut i = 0;
+        while i < 50_000 {
+            let expr = generator.generate(&range);
+            let expr_str = expr.to_string();
+            assert!(Parser::new(&expr_str).parse().is_ok());
 
-    // validate
-    let mut valid_set = HashSet::new();
-    valid_set.extend(
-        seen_entries
-            .difference(&train_set)
-            .filter(|e| e.ret)
-            .cloned()
-            .choose_multiple(&mut rng, 1_250),
-    );
-    valid_set.extend(
-        seen_entries
-            .difference(&train_set)
-            .filter(|e| !e.ret)
-            .cloned()
-            .choose_multiple(&mut rng, 1_250),
-    );
+            let state = generate_state(&expr);
+            let ret = evaluate(&expr, &state);
+            let entry = Entry { expr, state, ret };
+
+            if seen.contains(&entry) {
+                continue;
+            }
+
+            seen.insert(entry);
+            i += 1;
+        }
+
+        set.extend(
+            seen.iter()
+                .filter(|e| e.ret)
+                .cloned()
+                .choose_multiple(&mut rng, samples / 2),
+        );
+        set.extend(
+            seen.iter()
+                .filter(|e| !e.ret)
+                .cloned()
+                .choose_multiple(&mut rng, samples / 2),
+        );
+    }
 
     let connection = rusqlite::Connection::open("dataset.db").unwrap();
 
@@ -100,8 +92,8 @@ fn main() {
         let mut data_query = format!("INSERT INTO {table} (expression, result) VALUES ");
 
         let dataset = match &**table {
-            "train" => &train_set,
-            "test" => &valid_set,
+            "train" => &set_train,
+            "test" => &set_valid,
             _ => unreachable!(),
         };
         let mut iter = dataset.iter().peekable();
