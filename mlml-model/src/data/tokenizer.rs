@@ -26,6 +26,9 @@ const STRUCT: &[&str] = &[
     "<assign_end>",
     "<expr_start>",
     "<expr_end>",
+    "<var_prefix>",
+    "<operator_prefix>",
+    "<value_prefix>",
 ];
 
 #[allow(dead_code)]
@@ -94,6 +97,7 @@ impl Tokenizer for CharTokenizer {
         while i < chars.len() {
             // Handle multi-char tokens (true, false, operators)
             if i + 3 < chars.len() && &chars[i..i + 4] == ['t', 'r', 'u', 'e'] {
+                tokens.push(self.vocab["<value_prefix>"]);
                 tokens.push(self.vocab["true"]);
                 if in_assignment {
                     tokens.push(self.vocab["<assign_end>"]);
@@ -101,6 +105,7 @@ impl Tokenizer for CharTokenizer {
                 }
                 i += 4;
             } else if i + 4 < chars.len() && &chars[i..i + 5] == ['f', 'a', 'l', 's', 'e'] {
+                tokens.push(self.vocab["<value_prefix>"]);
                 tokens.push(self.vocab["false"]);
                 if in_assignment {
                     tokens.push(self.vocab["<assign_end>"]);
@@ -108,6 +113,7 @@ impl Tokenizer for CharTokenizer {
                 }
                 i += 5;
             } else if OPERATORS.contains(&&*chars[i].to_string()) {
+                tokens.push(self.vocab["<operator_prefix>"]);
                 tokens.push(self.vocab[&chars[i].to_string()]);
                 i += 1;
             } else if chars[i].is_whitespace() {
@@ -127,6 +133,7 @@ impl Tokenizer for CharTokenizer {
                     in_assignment = true;
                     tokens.push(self.vocab["<assign_start>"]);
                 }
+                tokens.push(self.vocab["<var_prefix>"]);
                 tokens.push(
                     self.vocab
                         .get(&chars[i].to_string())
