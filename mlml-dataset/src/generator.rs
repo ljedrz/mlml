@@ -2,31 +2,18 @@ use std::{collections::HashSet, ops::RangeInclusive};
 
 use crate::parser::{BinaryOp, BinaryOpType, Expr};
 use rand::Rng;
-use rand::distributions::{Distribution, WeightedIndex};
 use rand::seq::IteratorRandom;
 
 pub struct ExprGenerator {
     max_depth: usize,
     max_vars: usize,
-    weights: Weights,
-}
-
-#[derive(Clone)]
-pub struct Weights {
-    pub var: f32,
-    pub not: f32,
-    pub and: f32,
-    pub or: f32,
-    pub implies: f32,
-    pub equivalent: f32,
 }
 
 impl ExprGenerator {
-    pub fn new(max_depth: usize, max_vars: usize, weights: Weights) -> Self {
+    pub fn new(max_depth: usize, max_vars: usize) -> Self {
         ExprGenerator {
             max_depth,
             max_vars,
-            weights,
         }
     }
 
@@ -44,7 +31,7 @@ impl ExprGenerator {
         let mut rng = rand::thread_rng();
 
         // At max depth, only generate variables
-        if depth >= self.max_depth {
+        if depth >= self.max_depth || rng.gen_bool(0.65) {
             let var = if vars.len() < self.max_vars {
                 let v = self.random_variable(&range, &mut rng);
                 vars.insert(v);
@@ -57,18 +44,10 @@ impl ExprGenerator {
         }
 
         // Choose production based on weights
-        let choices = [
-            ("var", self.weights.var),
-            ("not", self.weights.not),
-            ("and", self.weights.and),
-            ("or", self.weights.or),
-            ("impl", self.weights.implies),
-            ("equiv", self.weights.equivalent),
-        ];
-        let dist = WeightedIndex::new(choices.iter().map(|x| x.1)).unwrap();
-        let choice = choices[dist.sample(&mut rng)].0;
+        let choices = ["var", "not", "and", "or", "impl", "equiv"];
+        let choice = choices.iter().choose(&mut rng).unwrap();
 
-        match choice {
+        match &**choice {
             "var" => {
                 let var = if vars.len() < self.max_vars {
                     let v = self.random_variable(range, &mut rng);

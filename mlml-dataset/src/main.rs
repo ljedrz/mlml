@@ -15,19 +15,13 @@ struct Entry {
     ret: bool,
 }
 
-const SAMPLES_TRAIN: usize = 25_000;
-const SAMPLES_VALID: usize = 2_500;
+const SAMPLES_TRAIN: usize = 15_000;
+const SAMPLES_VALID: usize = 1_500;
+const MAX_VARS: usize = 5;
+const MAX_DEPTH: usize = 2;
 
 fn main() {
-    let weights = Weights {
-        var: 0.2,
-        not: 0.2,
-        and: 0.2,
-        or: 0.2,
-        implies: 0.1,
-        equivalent: 0.1,
-    };
-    let generator = ExprGenerator::new(3, 6, weights);
+    let generator = ExprGenerator::new(MAX_DEPTH, MAX_VARS);
 
     let mut seen_train: HashSet<Entry> = HashSet::new();
     let mut seen_valid: HashSet<Entry> = HashSet::new();
@@ -41,9 +35,10 @@ fn main() {
             "valid" => (&mut seen_valid, &mut set_valid, 'p'..='t', SAMPLES_VALID),
             _ => unreachable!(),
         };
+        assert_eq!(range.clone().count(), MAX_VARS);
 
         let mut i = 0;
-        while i < 50_000 {
+        while i < 20_000 {
             let expr = generator.generate(&range);
             let expr_str = expr.to_string();
             assert!(Parser::new(&expr_str).parse().is_ok());
