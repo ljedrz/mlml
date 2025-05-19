@@ -17,6 +17,7 @@ struct Entry {
 
 const SAMPLES_TRAIN: usize = 10_000;
 const SAMPLES_VALID: usize = SAMPLES_TRAIN / 10;
+const SAMPLES_TEST: usize = SAMPLES_TRAIN;
 const MAX_VARS: usize = 5;
 const MAX_DEPTH: usize = 2;
 
@@ -25,14 +26,17 @@ fn main() {
 
     let mut seen_train: HashSet<Entry> = HashSet::new();
     let mut seen_valid: HashSet<Entry> = HashSet::new();
+    let mut seen_test: HashSet<Entry> = HashSet::new();
     let mut set_train = HashSet::new();
     let mut set_valid = HashSet::new();
+    let mut set_test = HashSet::new();
 
     let mut rng = rand::thread_rng();
-    for ty in ["train", "valid"] {
+    for ty in ["train", "valid", "test"] {
         let (seen, set, range, samples) = match ty {
             "train" => (&mut seen_train, &mut set_train, 'a'..='e', SAMPLES_TRAIN),
             "valid" => (&mut seen_valid, &mut set_valid, 'p'..='t', SAMPLES_VALID),
+            "test" => (&mut seen_test, &mut set_test, 'f'..='j', SAMPLES_TEST),
             _ => unreachable!(),
         };
         assert_eq!(range.clone().count(), MAX_VARS);
@@ -71,7 +75,7 @@ fn main() {
 
     let connection = rusqlite::Connection::open("dataset.db").unwrap();
 
-    for table in &["train", "test"] {
+    for table in &["train", "valid", "test"] {
         let table_creation_query = format!(
             "
             CREATE TABLE {table} (
@@ -88,7 +92,8 @@ fn main() {
 
         let dataset = match &**table {
             "train" => &set_train,
-            "test" => &set_valid,
+            "valid" => &set_valid,
+            "test" => &set_test,
             _ => unreachable!(),
         };
         let mut iter = dataset.iter().peekable();

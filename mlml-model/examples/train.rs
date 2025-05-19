@@ -13,8 +13,7 @@ type ElemType = f32;
 
 pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>) {
     let config = ExperimentConfig::new(
-        TransformerEncoderConfig::new(256, 128, 4, 2)
-            .with_norm_first(true),
+        TransformerEncoderConfig::new(256, 128, 4, 2).with_norm_first(true),
         AdamWConfig::new()
             .with_weight_decay(1e-2)
             .with_grad_clipping(Some(GradientClippingConfig::Norm(3.0))),
@@ -23,7 +22,7 @@ pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>) {
     mlml_model::training::train::<B, DeductiveReasoningDataset>(
         devices,
         DeductiveReasoningDataset::train(),
-        DeductiveReasoningDataset::test(),
+        DeductiveReasoningDataset::validate(),
         config,
         "/tmp/mlml_model",
     );

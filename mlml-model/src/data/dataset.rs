@@ -50,8 +50,8 @@ impl DeductiveReasoningDataset {
     }
 
     /// Returns the testing portion of the dataset
-    pub fn test() -> Self {
-        Self::new("test")
+    pub fn validate() -> Self {
+        Self::new("valid")
     }
 
     /// Constructs the dataset from a split (either "train" or "test")

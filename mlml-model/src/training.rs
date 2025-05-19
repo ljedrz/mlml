@@ -18,9 +18,11 @@ use burn::{
     record::{CompactRecorder, Recorder},
     tensor::backend::AutodiffBackend,
     train::{
+        LearnerBuilder, MetricEarlyStoppingStrategy, StoppingCondition,
         metric::{
-            store::{Aggregate, Direction, Split}, AccuracyMetric, IterationSpeedMetric, LearningRateMetric, LossMetric
-        }, LearnerBuilder, MetricEarlyStoppingStrategy, StoppingCondition
+            AccuracyMetric, IterationSpeedMetric, LearningRateMetric, LossMetric,
+            store::{Aggregate, Direction, Split},
+        },
     },
 };
 use std::sync::Arc;
@@ -71,7 +73,7 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
         .num_workers(1)
         .shuffle(7777777) // FIXME
         .build(SamplerDataset::new(dataset_train, config.train_samples));
-    let dataloader_test = DataLoaderBuilder::new(batcher)
+    let dataloader_valid = DataLoaderBuilder::new(batcher)
         .batch_size(config.batch_size)
         .num_workers(1)
         .shuffle(7777777) // FIXME
@@ -111,7 +113,7 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
         .build(model, optim, lr_scheduler);
 
     // Train the model
-    let model_trained = learner.fit(dataloader_train, dataloader_test);
+    let model_trained = learner.fit(dataloader_train, dataloader_valid);
 
     // Save the configuration and the trained model
     config.save(format!("{artifact_dir}/config.json")).unwrap();
