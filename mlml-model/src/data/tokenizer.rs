@@ -67,7 +67,7 @@ impl CharTokenizer {
 
 impl Default for CharTokenizer {
     fn default() -> Self {
-        Self::new(60)
+        Self::new(150)
     }
 }
 

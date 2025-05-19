@@ -68,12 +68,12 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
         .batch_size(config.batch_size)
         .num_workers(1)
         .shuffle(1234567) // FIXME
-        .build(SamplerDataset::new(dataset_train, 8_500));
+        .build(SamplerDataset::new(dataset_train, 21_250));
     let dataloader_test = DataLoaderBuilder::new(batcher)
         .batch_size(config.batch_size)
         .num_workers(1)
         .shuffle(7777777) // FIXME
-        .build(SamplerDataset::new(dataset_test, 1_000));
+        .build(SamplerDataset::new(dataset_test, 2_500));
 
     // Initialize optimizer
     let optim = config.optimizer.init();
@@ -88,7 +88,7 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
         Aggregate::Mean,
         Direction::Highest,
         Split::Valid,
-        StoppingCondition::NoImprovementSince { n_epochs: 10 },
+        StoppingCondition::NoImprovementSince { n_epochs: 5 },
     );
 
     // Initialize learner

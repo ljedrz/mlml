@@ -24,12 +24,12 @@ fn main() {
         implies: 0.1,
         equivalent: 0.1,
     };
-    let generator = ExprGenerator::new(2, 5, weights);
+    let generator = ExprGenerator::new(3, 6, weights);
 
     let mut seen_entries: HashSet<Entry> = HashSet::new();
 
     let mut i = 0;
-    while i < 20_000 {
+    while i < 50_000 {
         let expr = generator.generate();
         let expr_str = expr.to_string();
         assert!(Parser::new(&expr_str).parse().is_ok());
@@ -55,14 +55,14 @@ fn main() {
             .iter()
             .filter(|e| e.ret)
             .cloned()
-            .choose_multiple(&mut rng, 5_000),
+            .choose_multiple(&mut rng, 12_500),
     );
     train_set.extend(
         seen_entries
             .iter()
             .filter(|e| !e.ret)
             .cloned()
-            .choose_multiple(&mut rng, 5_000),
+            .choose_multiple(&mut rng, 12_500),
     );
 
     // validate
@@ -72,14 +72,14 @@ fn main() {
             .difference(&train_set)
             .filter(|e| e.ret)
             .cloned()
-            .choose_multiple(&mut rng, 500),
+            .choose_multiple(&mut rng, 1_250),
     );
     valid_set.extend(
         seen_entries
             .difference(&train_set)
             .filter(|e| !e.ret)
             .cloned()
-            .choose_multiple(&mut rng, 500),
+            .choose_multiple(&mut rng, 1_250),
     );
 
     let connection = rusqlite::Connection::open("dataset.db").unwrap();
