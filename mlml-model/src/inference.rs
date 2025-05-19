@@ -14,13 +14,13 @@ use burn::{
     prelude::*,
     record::{CompactRecorder, Recorder},
 };
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 // Define inference function
 pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
     device: B::Device, // Device on which to perform computation (e.g., CPU or CUDA device)
     artifact_dir: &str, // Directory containing model and config files
-    samples: Vec<String>, // Text samples for inference
+    test_samples: Vec<(String, String)>, // Text samples for inference
 ) {
     // Load experiment configuration
     let config = ExperimentConfig::load(format!("{artifact_dir}/config.json").as_str())
@@ -57,11 +57,15 @@ pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
 
     // Run inference on the given text samples
     println!("Running inference ...");
-    let item = batcher.batch(samples.clone(), &device); // Batch samples using the batcher
+    let item = batcher.batch(
+        test_samples.iter().map(|(expr, _)| expr.clone()).collect(),
+        &device,
+    ); // Batch samples using the batcher
     let predictions = model.infer(item); // Get model predictions
 
     // Print out predictions for each sample
-    for (i, text) in samples.into_iter().enumerate() {
+    let mut misses = Vec::new();
+    for (i, (expr, expected_ret)) in test_samples.iter().enumerate() {
         #[allow(clippy::single_range_in_vec_init)]
         let prediction = predictions.clone().slice([i..i + 1]); // Get prediction for current sample
         let logits = prediction.to_data(); // Convert prediction tensor to data
@@ -70,8 +74,23 @@ pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
 
         // Print sample text, predicted logits and predicted class
         println!(
-            "\n=== Item {i} ===\n- Text: {text}\n- Logits: {logits}\n- Prediction: \
+            "\n=== Item {i} ===\n- Expr: {expr}\n- Logits: {logits}\n- Prediction: \
              {class}\n================"
         );
+
+        let expected: bool = FromStr::from_str(&expected_ret).unwrap();
+        if class != expected {
+            misses.push((i, expr));
+        }
     }
+
+    println!();
+    for (i, miss) in &misses {
+        println!("{i}: {miss}");
+    }
+    println!(
+        "\nmisses: {} ({}%)",
+        misses.len(),
+        (misses.len() as f64 / test_samples.len() as f64) * 100.0
+    );
 }

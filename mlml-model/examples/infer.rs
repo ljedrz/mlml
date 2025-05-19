@@ -7,12 +7,11 @@ use mlml_model::DeductiveReasoningDataset;
 #[allow(dead_code)]
 type ElemType = f32;
 
-pub fn launch<B: Backend>(device: B::Device, test_vector: Vec<String>) {
+pub fn launch<B: Backend>(device: B::Device, test_samples: Vec<(String, String)>) {
     mlml_model::inference::infer::<B, DeductiveReasoningDataset>(
         device,
         "/tmp/mlml_model",
-        // Samples from the test dataset, but you are free to test with your own text.
-        test_vector,
+        test_samples,
     );
 }
 
@@ -21,24 +20,23 @@ mod tch_cpu {
     use crate::{ElemType, launch};
     use burn::backend::libtorch::{LibTorch, LibTorchDevice};
 
-    pub fn run(test_vector: Vec<String>) {
-        launch::<LibTorch<ElemType>>(LibTorchDevice::Cpu, test_vector);
+    pub fn run(test_samples: Vec<(String, String)>) {
+        launch::<LibTorch<ElemType>>(LibTorchDevice::Cpu, test_samples);
     }
 }
 
 fn main() {
-    let f = std::fs::read_to_string("/home/ljedrz/git/ljedrz/mlml/mlml-dataset/test.csv").unwrap();
-    let r = f.lines();
+    let connection =
+        rusqlite::Connection::open("/home/ljedrz/git/ljedrz/mlml/mlml-dataset/dataset.db").unwrap();
+    let query = "SELECT * FROM test";
+    let mut stmt = connection.prepare(&query).unwrap();
+    let mut rows = stmt.query([]).unwrap();
 
-    let mut test_vector = vec![];
-    for l in r.skip(1) {
-        let mut split = l.split(";");
-        let expr = split.next().unwrap().to_owned();
-        let _res = split.next().unwrap();
-        // test_vector.push((expr, res));
-        test_vector.push(expr);
+    let mut test_samples = Vec::new();
+    while let Some(row) = rows.next().unwrap() {
+        test_samples.push((row.get(0).unwrap(), row.get(1).unwrap()));
     }
 
     #[cfg(feature = "tch-cpu")]
-    tch_cpu::run(test_vector);
+    tch_cpu::run(test_samples);
 }

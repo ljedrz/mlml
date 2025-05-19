@@ -23,5 +23,6 @@ burn = { version = "0.17", features = [
     "std",
 ], default-features = false }
 derive-new = { version = "0.7.0", default-features = false }
+rusqlite = "0.34"
 serde = { version = "1.0.218", features = ["std", "derive"] }
 unicode-segmentation = "1.12"
