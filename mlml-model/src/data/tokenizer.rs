@@ -80,7 +80,7 @@ impl CharTokenizer {
 
 impl Default for CharTokenizer {
     fn default() -> Self {
-        Self::new(150)
+        Self::new(60)
     }
 }
 
@@ -95,7 +95,6 @@ impl Tokenizer for CharTokenizer {
         let mut in_assignment = false;
 
         while i < chars.len() {
-            // Handle multi-char tokens (true, false, operators)
             if i + 3 < chars.len() && &chars[i..i + 4] == ['t', 'r', 'u', 'e'] {
                 tokens.push(self.vocab["<value_prefix>"]);
                 tokens.push(self.vocab["true"]);

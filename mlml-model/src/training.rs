@@ -18,11 +18,9 @@ use burn::{
     record::{CompactRecorder, Recorder},
     tensor::backend::AutodiffBackend,
     train::{
-        LearnerBuilder, MetricEarlyStoppingStrategy, StoppingCondition,
         metric::{
-            AccuracyMetric, IterationSpeedMetric, LearningRateMetric, LossMetric,
-            store::{Aggregate, Direction, Split},
-        },
+            store::{Aggregate, Direction, Split}, AccuracyMetric, IterationSpeedMetric, LearningRateMetric, LossMetric
+        }, LearnerBuilder, MetricEarlyStoppingStrategy, StoppingCondition
     },
 };
 use std::sync::Arc;
@@ -34,10 +32,14 @@ pub struct ExperimentConfig {
     pub optimizer: AdamWConfig,
     #[config(default = 256)]
     pub max_seq_length: usize,
-    #[config(default = 64)]
+    #[config(default = 32)]
     pub batch_size: usize,
-    #[config(default = 50)]
+    #[config(default = 20)]
     pub num_epochs: usize,
+    #[config(default = 15_000)]
+    pub train_samples: usize,
+    #[config(default = 1_500)]
+    pub valid_samples: usize,
 }
 
 // Define train function
@@ -67,19 +69,21 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
     let dataloader_train = DataLoaderBuilder::new(batcher.clone())
         .batch_size(config.batch_size)
         .num_workers(1)
-        .shuffle(1234567) // FIXME
-        .build(SamplerDataset::new(dataset_train, 21_250));
+        .shuffle(7777777) // FIXME
+        .build(SamplerDataset::new(dataset_train, config.train_samples));
     let dataloader_test = DataLoaderBuilder::new(batcher)
         .batch_size(config.batch_size)
         .num_workers(1)
         .shuffle(7777777) // FIXME
-        .build(SamplerDataset::new(dataset_test, 2_500));
+        .build(SamplerDataset::new(dataset_test, config.valid_samples));
 
     // Initialize optimizer
     let optim = config.optimizer.init();
 
     // Initialize learning rate scheduler
-    let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(2e-5, 50)
+    let iters = config.num_epochs * config.train_samples.div_ceil(config.batch_size);
+    let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(2e-4, iters)
+        .with_min_lr(1e-8)
         .init()
         .unwrap();
 

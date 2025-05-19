@@ -14,11 +14,11 @@ type ElemType = f32;
 pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>) {
     let config = ExperimentConfig::new(
         TransformerEncoderConfig::new(256, 512, 4, 2)
-            .with_dropout(0.4)
-            .with_norm_first(true)
-            .with_quiet_softmax(true),
+            .with_dropout(0.2)
+            .with_norm_first(true),
+            // .with_quiet_softmax(true),
         AdamWConfig::new()
-            .with_weight_decay(2e-1)
+            .with_weight_decay(1e-2)
             .with_grad_clipping(Some(GradientClippingConfig::Norm(1.0))),
     );
 
