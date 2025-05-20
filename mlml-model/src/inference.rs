@@ -1,8 +1,7 @@
-// This module defines the inference process for a text classification model.
+// This module defines the inference process for a classification model.
 // It loads a model and its configuration from a directory, and uses a tokenizer
 // and a batcher to prepare the input data. The model is then used to make predictions
 // on the input samples, and the results are printed out for each sample.
-// Import required modules and types
 
 use std::{str::FromStr, sync::Arc};
 
@@ -14,13 +13,13 @@ use burn::{
 use mlml_util::MlmlConfig;
 
 use crate::{
-    data::{CharTokenizer, TextClassificationBatcher, TextClassificationDataset, Tokenizer},
-    model::TextClassificationModelConfig,
+    data::{MlmlBatcher, MlmlDataset, MlmlTokenizer, Tokenizer},
+    model::MlmlModelConfig,
     training::ExperimentConfig,
 };
 
 // Define inference function
-pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
+pub fn infer<B: Backend, D: MlmlDataset + 'static>(
     device: B::Device, // Device on which to perform computation (e.g., CPU or CUDA device)
     artifact_dir: &str, // Directory containing model and config files
     test_samples: Vec<(String, String)>, // Text samples for inference
@@ -31,13 +30,13 @@ pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
         .expect("Config file present");
 
     // Initialize tokenizer
-    let tokenizer = Arc::new(CharTokenizer::new(mlml_config.dataset.max_seq_length));
+    let tokenizer = Arc::new(MlmlTokenizer::new(mlml_config.dataset.max_seq_length));
 
     // Get number of classes from dataset
     let n_classes = 2;
 
     // Initialize batcher for batching samples
-    let batcher = Arc::new(TextClassificationBatcher::new(
+    let batcher = Arc::new(MlmlBatcher::new(
         tokenizer.clone(),
         mlml_config.dataset.max_seq_length,
     ));
@@ -50,7 +49,7 @@ pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
 
     // Create model using loaded weights
     println!("Creating model ...");
-    let model = TextClassificationModelConfig::new(
+    let model = MlmlModelConfig::new(
         config.transformer,
         n_classes,
         tokenizer.vocab_size(),

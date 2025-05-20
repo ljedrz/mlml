@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct CharTokenizer {
+pub struct MlmlTokenizer {
     vocab: HashMap<String, usize>,     // Token to ID
     inv_vocab: HashMap<usize, String>, // ID to token
     max_seq_length: usize,
@@ -52,7 +52,7 @@ pub trait Tokenizer: Send + Sync {
     }
 }
 
-impl CharTokenizer {
+impl MlmlTokenizer {
     pub fn new(max_seq_length: usize) -> Self {
         let mut tokens = STRUCT.to_vec();
         tokens.extend_from_slice(MISC);
@@ -60,17 +60,17 @@ impl CharTokenizer {
         tokens.extend_from_slice(OPERATORS);
         tokens.extend_from_slice(ALPHABET);
 
-        let vocab: HashMap<String, usize> = tokens
+        let vocab = tokens
             .iter()
             .enumerate()
             .map(|(i, &t)| (t.to_string(), i))
             .collect();
-        let inv_vocab: HashMap<usize, String> = tokens
+        let inv_vocab = tokens
             .iter()
             .enumerate()
             .map(|(i, &t)| (i, t.to_string()))
             .collect();
-        CharTokenizer {
+        MlmlTokenizer {
             vocab,
             inv_vocab,
             max_seq_length,
@@ -78,7 +78,7 @@ impl CharTokenizer {
     }
 }
 
-impl Tokenizer for CharTokenizer {
+impl Tokenizer for MlmlTokenizer {
     fn encode(&self, input: &str) -> Vec<usize> {
         let mut tokens = Vec::new();
         let mut i = 0;
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn tokenizer() {
         let expr_with_state_str = "[i, f: true; g, j: false] ((g ∧ (¬j → i)) ∧ (f ∨ j))";
-        let tokenizer = CharTokenizer::new(64);
+        let tokenizer = MlmlTokenizer::new(64);
         let tokens = tokenizer.encode(expr_with_state_str);
         let decoded = tokenizer.decode(&tokens);
         println!("{decoded}");

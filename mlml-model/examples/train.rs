@@ -5,7 +5,7 @@ use burn::{
     optim::AdamWConfig, tensor::backend::AutodiffBackend,
 };
 
-use mlml_model::{DeductiveReasoningDataset, training::ExperimentConfig};
+use mlml_model::{RawDataset, training::ExperimentConfig};
 use mlml_util::MlmlConfig;
 
 #[cfg(not(any(feature = "f16", feature = "flex32")))]
@@ -28,10 +28,10 @@ pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>, mlml_config: MlmlConf
             ))),
     );
 
-    mlml_model::training::train::<B, DeductiveReasoningDataset>(
+    mlml_model::training::train::<B, RawDataset>(
         devices,
-        DeductiveReasoningDataset::train(&mlml_config.dataset.db_path),
-        DeductiveReasoningDataset::validate(&mlml_config.dataset.db_path),
+        RawDataset::train(&mlml_config.dataset.db_path),
+        RawDataset::validate(&mlml_config.dataset.db_path),
         config,
         "/tmp/mlml_model",
         mlml_config,

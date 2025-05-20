@@ -7,4 +7,4 @@ mod model;
 pub mod inference;
 pub mod training;
 
-pub use data::{DeductiveReasoningDataset, TextClassificationDataset};
+pub use data::{MlmlDataset, RawDataset};

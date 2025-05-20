@@ -1,9 +1,9 @@
-// This is a basic text classification model implemented in Rust using the Burn framework.
+// This is a basic classification model implemented in Rust using the Burn framework.
 // It uses a Transformer as the base model and applies Linear and Embedding layers.
 // The model is then trained using Cross-Entropy loss. It contains methods for model initialization
 // (both with and without pre-trained weights), forward pass, inference, training, and validation.
 
-use crate::data::{TextClassificationInferenceBatch, TextClassificationTrainingBatch};
+use crate::data::{InferenceBatch, TrainingBatch};
 use burn::{
     nn::{
         Embedding, EmbeddingConfig, Linear, LinearConfig,
@@ -17,7 +17,7 @@ use burn::{
 
 // Define the model configuration
 #[derive(Config)]
-pub struct TextClassificationModelConfig {
+pub struct MlmlModelConfig {
     transformer: TransformerEncoderConfig,
     n_classes: usize,
     vocab_size: usize,
@@ -26,7 +26,7 @@ pub struct TextClassificationModelConfig {
 
 // Define the model structure
 #[derive(Module, Debug)]
-pub struct TextClassificationModel<B: Backend> {
+pub struct MlmlModel<B: Backend> {
     transformer: TransformerEncoder<B>,
     embedding_token: Embedding<B>,
     embedding_pos: Embedding<B>,
@@ -36,9 +36,9 @@ pub struct TextClassificationModel<B: Backend> {
 }
 
 // Define functions for model initialization
-impl TextClassificationModelConfig {
+impl MlmlModelConfig {
     /// Initializes a model with default weights
-    pub fn init<B: Backend>(&self, device: &B::Device) -> TextClassificationModel<B> {
+    pub fn init<B: Backend>(&self, device: &B::Device) -> MlmlModel<B> {
         let output = LinearConfig::new(self.transformer.d_model, self.n_classes).init(device);
         let transformer = self.transformer.init(device);
         let embedding_token =
@@ -46,7 +46,7 @@ impl TextClassificationModelConfig {
         let embedding_pos =
             EmbeddingConfig::new(self.max_seq_length, self.transformer.d_model).init(device);
 
-        TextClassificationModel {
+        MlmlModel {
             transformer,
             embedding_token,
             embedding_pos,
@@ -58,9 +58,9 @@ impl TextClassificationModelConfig {
 }
 
 /// Define model behavior
-impl<B: Backend> TextClassificationModel<B> {
+impl<B: Backend> MlmlModel<B> {
     // Defines forward pass for training
-    pub fn forward(&self, item: TextClassificationTrainingBatch<B>) -> ClassificationOutput<B> {
+    pub fn forward(&self, item: TrainingBatch<B>) -> ClassificationOutput<B> {
         // Get batch and sequence length, and the device
         let [batch_size, seq_length] = item.tokens.dims();
         let device = &self.embedding_token.devices()[0];
@@ -103,7 +103,7 @@ impl<B: Backend> TextClassificationModel<B> {
     }
 
     /// Defines forward pass for inference
-    pub fn infer(&self, item: TextClassificationInferenceBatch<B>) -> Tensor<B, 2> {
+    pub fn infer(&self, item: InferenceBatch<B>) -> Tensor<B, 2> {
         // Get batch and sequence length, and the device
         let [batch_size, seq_length] = item.tokens.dims();
         let device = &self.embedding_token.devices()[0];
@@ -134,13 +134,8 @@ impl<B: Backend> TextClassificationModel<B> {
 }
 
 /// Define training step
-impl<B: AutodiffBackend> TrainStep<TextClassificationTrainingBatch<B>, ClassificationOutput<B>>
-    for TextClassificationModel<B>
-{
-    fn step(
-        &self,
-        item: TextClassificationTrainingBatch<B>,
-    ) -> TrainOutput<ClassificationOutput<B>> {
+impl<B: AutodiffBackend> TrainStep<TrainingBatch<B>, ClassificationOutput<B>> for MlmlModel<B> {
+    fn step(&self, item: TrainingBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
         // Run forward pass, calculate gradients and return them along with the output
         let item = self.forward(item);
         let grads = item.loss.backward();
@@ -150,10 +145,8 @@ impl<B: AutodiffBackend> TrainStep<TextClassificationTrainingBatch<B>, Classific
 }
 
 /// Define validation step
-impl<B: Backend> ValidStep<TextClassificationTrainingBatch<B>, ClassificationOutput<B>>
-    for TextClassificationModel<B>
-{
-    fn step(&self, item: TextClassificationTrainingBatch<B>) -> ClassificationOutput<B> {
+impl<B: Backend> ValidStep<TrainingBatch<B>, ClassificationOutput<B>> for MlmlModel<B> {
+    fn step(&self, item: TrainingBatch<B>) -> ClassificationOutput<B> {
         // Run forward pass and return the output
         self.forward(item)
     }

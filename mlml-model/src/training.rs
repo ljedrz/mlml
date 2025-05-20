@@ -1,4 +1,4 @@
-// This module trains a text classification model using the provided training and testing datasets,
+// This module trains a classification model using the provided training and testing datasets,
 // as well as the provided configuration. It first initializes a tokenizer and batchers for the datasets,
 // then initializes the model and data loaders for the datasets. The function then initializes
 // an optimizer and a learning rate scheduler, and uses them along with the model and datasets
@@ -26,8 +26,8 @@ use burn::{
 use mlml_util::MlmlConfig;
 
 use crate::{
-    data::{CharTokenizer, TextClassificationBatcher, TextClassificationDataset, Tokenizer},
-    model::TextClassificationModelConfig,
+    data::{MlmlBatcher, MlmlDataset, MlmlTokenizer, Tokenizer},
+    model::MlmlModelConfig,
 };
 
 // Define configuration struct for the experiment
@@ -38,23 +38,22 @@ pub struct ExperimentConfig {
 }
 
 // Define train function
-pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
+pub fn train<B: AutodiffBackend, D: MlmlDataset + 'static>(
     devices: Vec<B::Device>, // Device on which to perform computation (e.g., CPU or CUDA device)
     dataset_train: D,        // Training dataset
-    dataset_test: D,         // Testing dataset
+    dataset_valid: D,        // Validation dataset
     config: ExperimentConfig, // Experiment configuration
     artifact_dir: &str,      // Directory to save model and config files
     mlml_config: MlmlConfig,
 ) {
     // Initialize tokenizer
-    let tokenizer = Arc::new(CharTokenizer::new(mlml_config.dataset.max_seq_length));
+    let tokenizer = Arc::new(MlmlTokenizer::new(mlml_config.dataset.max_seq_length));
 
     // Initialize batcher
-    let batcher =
-        TextClassificationBatcher::new(tokenizer.clone(), mlml_config.dataset.max_seq_length);
+    let batcher = MlmlBatcher::new(tokenizer.clone(), mlml_config.dataset.max_seq_length);
 
     // Initialize model
-    let model = TextClassificationModelConfig::new(
+    let model = MlmlModelConfig::new(
         config.transformer.clone(),
         2,
         tokenizer.vocab_size(),
@@ -76,7 +75,7 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
         .num_workers(1)
         .shuffle(7777777) // FIXME
         .build(SamplerDataset::new(
-            dataset_test,
+            dataset_valid,
             mlml_config.dataset.valid_samples_count,
         ));
 
