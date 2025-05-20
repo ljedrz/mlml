@@ -3,9 +3,9 @@
     "train_samples_count": 10000,
     "valid_samples_count": 1000,
     "test_samples_count": 5000,
-    "max_seq_length": 128,
+    "max_seq_length": 100,
     "max_variables": 5,
-    "max_depth": 2,
+    "max_depth": 3,
     "db_path": "/tmp/dataset.db"
   },
   "model": {

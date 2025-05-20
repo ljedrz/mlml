@@ -52,10 +52,11 @@ fn main() {
             ),
             _ => unreachable!(),
         };
-        let range = ('a'..'z').choose_multiple(&mut rng, config.dataset.max_variables);
 
         let mut i = 0;
         while i < config.dataset.train_samples_count {
+            let range = ('a'..='z').choose_multiple(&mut rng, config.dataset.max_variables);
+
             let expr = generator.generate(&range, &mut rng);
             let expr_str = expr.to_string();
             assert!(Parser::new(&expr_str).parse().is_ok());
@@ -64,12 +65,11 @@ fn main() {
             let ret = evaluate(&expr, &state);
             let entry = Entry { expr, state, ret };
 
-            if seen.contains(&entry) || seen_all.contains(&entry) {
+            if !seen_all.insert(entry.clone()) {
                 continue;
             }
 
-            seen.insert(entry.clone());
-            seen_all.insert(entry);
+            seen.insert(entry);
             i += 1;
         }
 
