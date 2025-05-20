@@ -33,6 +33,7 @@ pub struct ModelConfig {
     pub n_heads: usize,
     pub n_layers: usize,
 
+    pub dropout: f64,
     pub weight_decay: f32,
     pub gradient_clipping_norm: f32,
 }

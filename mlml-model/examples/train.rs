@@ -20,6 +20,7 @@ pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>, mlml_config: MlmlConf
             mlml_config.model.n_heads,
             mlml_config.model.n_layers,
         )
+        .with_dropout(mlml_config.model.dropout)
         .with_norm_first(true),
         AdamWConfig::new()
             .with_weight_decay(mlml_config.model.weight_decay)

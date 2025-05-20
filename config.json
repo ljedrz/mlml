@@ -1,7 +1,7 @@
 {
   "dataset": {
-    "train_samples_count": 10000,
-    "valid_samples_count": 1000,
+    "train_samples_count": 16000,
+    "valid_samples_count": 4000,
     "test_samples_count": 5000,
     "max_seq_length": 100,
     "max_variables": 5,
@@ -14,11 +14,12 @@
     "n_heads": 4,
     "n_layers": 2,
 
-    "weight_decay": 1e-2,
+    "dropout": 0.1,
+    "weight_decay": 0.01,
     "gradient_clipping_norm": 3.0
   },
   "training": {
-    "initial_lr": 2e-4,
+    "initial_lr": 0.0002,
     "min_lr": 1e-8,
 
     "batch_size": 32,
