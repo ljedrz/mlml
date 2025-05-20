@@ -4,7 +4,8 @@ mod parser;
 
 use std::collections::HashSet;
 
-use rand::seq::IteratorRandom;
+use rand::{SeedableRng, seq::IteratorRandom};
+use rand_xorshift::XorShiftRng;
 
 use crate::{eval::evaluate, generator::*, parser::*};
 
@@ -17,9 +18,9 @@ struct Entry {
 
 const SAMPLES_TRAIN: usize = 10_000;
 const SAMPLES_VALID: usize = SAMPLES_TRAIN / 10;
-const SAMPLES_TEST: usize = SAMPLES_TRAIN;
+const SAMPLES_TEST: usize = SAMPLES_TRAIN / 2;
 const MAX_VARS: usize = 5;
-const MAX_DEPTH: usize = 2;
+const MAX_DEPTH: usize = 5;
 
 fn main() {
     let generator = ExprGenerator::new(MAX_DEPTH, MAX_VARS);
@@ -31,7 +32,8 @@ fn main() {
     let mut set_valid = HashSet::new();
     let mut set_test = HashSet::new();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = XorShiftRng::from_rng(&mut rand::rng());
+
     for ty in ["train", "valid", "test"] {
         let (seen, set, range, samples) = match ty {
             "train" => (&mut seen_train, &mut set_train, 'a'..='e', SAMPLES_TRAIN),
@@ -43,11 +45,11 @@ fn main() {
 
         let mut i = 0;
         while i < 20_000 {
-            let expr = generator.generate(&range);
+            let expr = generator.generate(&range, &mut rng);
             let expr_str = expr.to_string();
             assert!(Parser::new(&expr_str).parse().is_ok());
 
-            let state = generate_state(&expr);
+            let state = generate_state(&expr, &mut rng);
             let ret = evaluate(&expr, &state);
             let entry = Entry { expr, state, ret };
 
@@ -117,15 +119,33 @@ fn main() {
 }
 
 fn stringify_state(state: &[(char, bool)]) -> String {
-    let mut ret = String::from("[");
-
-    let mut iter = state.iter().peekable();
-    while let Some((c, b)) = iter.next() {
-        ret.push_str(&format!("{c}: {b}"));
-        if iter.peek().is_some() {
-            ret.push_str(", ");
+    let (mut ts, mut fs) = (Vec::new(), Vec::new());
+    for (c, b) in state {
+        if *b {
+            ts.push(c);
+        } else {
+            fs.push(c);
         }
     }
+
+    let mut ret = String::from("[");
+
+    for (vars, val) in [(&ts, "true"), (&fs, "false")] {
+        if !vars.is_empty() {
+            let mut iter = vars.iter().peekable();
+            while let Some(c) = iter.next() {
+                ret.push(**c);
+                if iter.peek().is_some() {
+                    ret.push_str(", ");
+                }
+            }
+            ret.push_str(&format!(": {val}"));
+            if !ts.is_empty() && !fs.is_empty() && val == "true" {
+                ret.push_str("; ");
+            }
+        }
+    }
+
     ret.push(']');
 
     ret

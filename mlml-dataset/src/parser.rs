@@ -33,14 +33,17 @@ impl Expr {
         match self {
             Expr::Var(s) => s.to_string(),
             Expr::Not(e) => format!("¬{}", e.to_string()),
-            Expr::BinaryOp(bop) => match bop.ty {
-                BinaryOpType::And => format!("({} ∧ {})", bop.l.to_string(), bop.r.to_string()),
-                BinaryOpType::Or => format!("({} ∨ {})", bop.l.to_string(), bop.r.to_string()),
-                BinaryOpType::Implies => format!("({} → {})", bop.l.to_string(), bop.r.to_string()),
-                BinaryOpType::Equivalent => {
-                    format!("({} ↔ {})", bop.l.to_string(), bop.r.to_string())
+            Expr::BinaryOp(bop) => {
+                let (l, r) = (bop.l.to_string(), bop.r.to_string());
+                match bop.ty {
+                    BinaryOpType::And => format!("({} ∧ {})", l, r),
+                    BinaryOpType::Or => format!("({} ∨ {})", l, r),
+                    BinaryOpType::Implies => format!("({} → {})", l, r),
+                    BinaryOpType::Equivalent => {
+                        format!("({} ↔ {})", l, r)
+                    }
                 }
-            },
+            }
         }
     }
 }
@@ -78,29 +81,18 @@ impl<'a> Parser<'a> {
         let right = self.parse_expr()?;
         self.skip_whitespace();
         self.expect(')')?;
-        match op {
-            '∧' => Ok(Expr::BinaryOp(Box::new(BinaryOp::new(
-                BinaryOpType::And,
-                left,
-                right,
-            )))),
-            '∨' => Ok(Expr::BinaryOp(Box::new(BinaryOp::new(
-                BinaryOpType::Or,
-                left,
-                right,
-            )))),
-            '→' => Ok(Expr::BinaryOp(Box::new(BinaryOp::new(
-                BinaryOpType::Implies,
-                left,
-                right,
-            )))),
-            '↔' => Ok(Expr::BinaryOp(Box::new(BinaryOp::new(
-                BinaryOpType::Equivalent,
-                left,
-                right,
-            )))),
-            _ => Err(format!("Unknown operator: {}", op)),
-        }
+
+        let op = match op {
+            '∧' => BinaryOpType::And,
+            '∨' => BinaryOpType::Or,
+            '→' => BinaryOpType::Implies,
+            '↔' => BinaryOpType::Equivalent,
+            _ => {
+                return Err(format!("Unknown operator: {}", op));
+            }
+        };
+
+        Ok(Expr::BinaryOp(Box::new(BinaryOp::new(op, left, right))))
     }
 
     fn parse_not(&mut self) -> Result<Expr, String> {
