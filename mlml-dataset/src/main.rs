@@ -23,38 +23,25 @@ fn main() {
 
     let generator = ExprGenerator::new(config.dataset.max_depth, config.dataset.max_variables);
 
+    let _ = std::fs::remove_file(&config.dataset.db_path);
+    let connection = rusqlite::Connection::open(&config.dataset.db_path).unwrap();
+
     let mut seen_all = HashSet::new();
-    let mut seen_train = HashSet::new();
-    let mut seen_valid = HashSet::new();
-    let mut seen_test = HashSet::new();
-    let mut set_train = HashSet::new();
-    let mut set_valid = HashSet::new();
-    let mut set_test = HashSet::new();
 
     let mut rng = XorShiftRng::from_rng(&mut rand::rng());
 
     for ty in ["train", "valid", "test"] {
-        let (seen, set, samples) = match ty {
-            "train" => (
-                &mut seen_train,
-                &mut set_train,
-                config.dataset.train_samples_count,
-            ),
-            "valid" => (
-                &mut seen_valid,
-                &mut set_valid,
-                config.dataset.valid_samples_count,
-            ),
-            "test" => (
-                &mut seen_test,
-                &mut set_test,
-                config.dataset.test_samples_count,
-            ),
+        let num_samples = match ty {
+            "train" => config.dataset.train_samples_count,
+            "valid" => config.dataset.valid_samples_count,
+            "test" => config.dataset.test_samples_count,
             _ => unreachable!(),
         };
 
+        let mut samples = HashSet::new();
+
         let mut i = 0;
-        while i < config.dataset.train_samples_count {
+        while i < num_samples * 3 / 2 {
             let range = ('a'..='z').choose_multiple(&mut rng, config.dataset.max_variables);
 
             let expr = generator.generate(&range, &mut rng);
@@ -69,31 +56,29 @@ fn main() {
                 continue;
             }
 
-            seen.insert(entry);
+            samples.insert(entry);
             i += 1;
         }
 
-        set.extend(
-            seen.iter()
+        let mut samples_normalized = HashSet::new();
+        samples_normalized.extend(
+            samples
+                .iter()
                 .filter(|e| e.ret)
                 .cloned()
-                .choose_multiple(&mut rng, samples / 2),
+                .choose_multiple(&mut rng, num_samples / 2),
         );
-        set.extend(
-            seen.iter()
+        samples_normalized.extend(
+            samples
+                .iter()
                 .filter(|e| !e.ret)
                 .cloned()
-                .choose_multiple(&mut rng, samples / 2),
+                .choose_multiple(&mut rng, num_samples / 2),
         );
-    }
 
-    let _ = std::fs::remove_file(&config.dataset.db_path);
-    let connection = rusqlite::Connection::open(&config.dataset.db_path).unwrap();
-
-    for table in &["train", "valid", "test"] {
         let table_creation_query = format!(
             "
-            CREATE TABLE {table} (
+            CREATE TABLE {ty} (
                 expression TEXT,
                 result TEXT,
                 row_id INTEGER PRIMARY KEY
@@ -103,15 +88,9 @@ fn main() {
 
         connection.execute(&table_creation_query, ()).unwrap();
 
-        let mut data_query = format!("INSERT INTO {table} (expression, result) VALUES ");
+        let mut data_query = format!("INSERT INTO {ty} (expression, result) VALUES ");
 
-        let dataset = match &**table {
-            "train" => &set_train,
-            "valid" => &set_valid,
-            "test" => &set_test,
-            _ => unreachable!(),
-        };
-        let mut iter = dataset.iter().peekable();
+        let mut iter = samples_normalized.iter().peekable();
         let mut row = String::new();
         while let Some(entry) = iter.next() {
             row.push_str(&format!(
