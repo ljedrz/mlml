@@ -17,7 +17,7 @@ const ALPHABET: &[&str] = &[
     "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s",
     "t", "u", "v", "w", "x", "y", "z",
 ];
-const MISC: &[&str] = &["[", "]", ":", ",", ";", "(", ")"];
+const MISC: &[&str] = &["[", "]", ":", ",", "(", ")"];
 const STRUCT: &[&str] = &[
     "<pad>",
     "<state>",
@@ -53,7 +53,7 @@ pub trait Tokenizer: Send + Sync {
 }
 
 impl CharTokenizer {
-    fn new(max_seq_length: usize) -> Self {
+    pub fn new(max_seq_length: usize) -> Self {
         let mut tokens = STRUCT.to_vec();
         tokens.extend_from_slice(MISC);
         tokens.extend_from_slice(VALUES);
@@ -75,12 +75,6 @@ impl CharTokenizer {
             inv_vocab,
             max_seq_length,
         }
-    }
-}
-
-impl Default for CharTokenizer {
-    fn default() -> Self {
-        Self::new(100)
     }
 }
 
@@ -115,7 +109,7 @@ impl Tokenizer for CharTokenizer {
                 tokens.push(self.vocab["<operator_prefix>"]);
                 tokens.push(self.vocab[&chars[i].to_string()]);
                 i += 1;
-            } else if chars[i].is_whitespace() {
+            } else if chars[i].is_whitespace() || chars[i] == ';' {
                 i += 1;
             } else if chars[i] == '[' {
                 in_state = true;
@@ -196,7 +190,7 @@ mod tests {
     #[test]
     fn tokenizer() {
         let expr_with_state_str = "[i, f: true; g, j: false] ((g ∧ (¬j → i)) ∧ (f ∨ j))";
-        let tokenizer = CharTokenizer::default();
+        let tokenizer = CharTokenizer::new(64);
         let tokens = tokenizer.encode(expr_with_state_str);
         let decoded = tokenizer.decode(&tokens);
         println!("{decoded}");

@@ -2,8 +2,9 @@ mod eval;
 mod generator;
 mod parser;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, fs};
 
+use mlml_util::{MlmlConfig, config_path};
 use rand::{SeedableRng, seq::IteratorRandom};
 use rand_xorshift::XorShiftRng;
 
@@ -16,18 +17,16 @@ struct Entry {
     ret: bool,
 }
 
-const SAMPLES_TRAIN: usize = 10_000;
-const SAMPLES_VALID: usize = SAMPLES_TRAIN / 10;
-const SAMPLES_TEST: usize = SAMPLES_TRAIN / 2;
-const MAX_VARS: usize = 5;
-const MAX_DEPTH: usize = 5;
-
 fn main() {
-    let generator = ExprGenerator::new(MAX_DEPTH, MAX_VARS);
+    let config_str = fs::read_to_string(config_path()).unwrap();
+    let config: MlmlConfig = serde_json::from_str(&config_str).unwrap();
 
-    let mut seen_train: HashSet<Entry> = HashSet::new();
-    let mut seen_valid: HashSet<Entry> = HashSet::new();
-    let mut seen_test: HashSet<Entry> = HashSet::new();
+    let generator = ExprGenerator::new(config.dataset.max_depth, config.dataset.max_variables);
+
+    let mut seen_all = HashSet::new();
+    let mut seen_train = HashSet::new();
+    let mut seen_valid = HashSet::new();
+    let mut seen_test = HashSet::new();
     let mut set_train = HashSet::new();
     let mut set_valid = HashSet::new();
     let mut set_test = HashSet::new();
@@ -35,16 +34,28 @@ fn main() {
     let mut rng = XorShiftRng::from_rng(&mut rand::rng());
 
     for ty in ["train", "valid", "test"] {
-        let (seen, set, range, samples) = match ty {
-            "train" => (&mut seen_train, &mut set_train, 'a'..='e', SAMPLES_TRAIN),
-            "valid" => (&mut seen_valid, &mut set_valid, 'p'..='t', SAMPLES_VALID),
-            "test" => (&mut seen_test, &mut set_test, 'f'..='j', SAMPLES_TEST),
+        let (seen, set, samples) = match ty {
+            "train" => (
+                &mut seen_train,
+                &mut set_train,
+                config.dataset.train_samples_count,
+            ),
+            "valid" => (
+                &mut seen_valid,
+                &mut set_valid,
+                config.dataset.valid_samples_count,
+            ),
+            "test" => (
+                &mut seen_test,
+                &mut set_test,
+                config.dataset.test_samples_count,
+            ),
             _ => unreachable!(),
         };
-        assert_eq!(range.clone().count(), MAX_VARS);
+        let range = ('a'..'z').choose_multiple(&mut rng, config.dataset.max_variables);
 
         let mut i = 0;
-        while i < 20_000 {
+        while i < config.dataset.train_samples_count {
             let expr = generator.generate(&range, &mut rng);
             let expr_str = expr.to_string();
             assert!(Parser::new(&expr_str).parse().is_ok());
@@ -53,11 +64,12 @@ fn main() {
             let ret = evaluate(&expr, &state);
             let entry = Entry { expr, state, ret };
 
-            if seen.contains(&entry) {
+            if seen.contains(&entry) || seen_all.contains(&entry) {
                 continue;
             }
 
-            seen.insert(entry);
+            seen.insert(entry.clone());
+            seen_all.insert(entry);
             i += 1;
         }
 
@@ -75,7 +87,8 @@ fn main() {
         );
     }
 
-    let connection = rusqlite::Connection::open("dataset.db").unwrap();
+    let _ = std::fs::remove_file(&config.dataset.db_path);
+    let connection = rusqlite::Connection::open(&config.dataset.db_path).unwrap();
 
     for table in &["train", "valid", "test"] {
         let table_creation_query = format!(

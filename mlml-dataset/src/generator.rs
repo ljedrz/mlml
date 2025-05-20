@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::RangeInclusive};
+use std::collections::HashSet;
 
 use crate::parser::{BinaryOp, BinaryOpType, Expr};
 use rand::Rng;
@@ -17,7 +17,7 @@ impl ExprGenerator {
         }
     }
 
-    pub fn generate<R: Rng>(&self, range: &RangeInclusive<char>, rng: &mut R) -> Expr {
+    pub fn generate<R: Rng>(&self, range: &[char], rng: &mut R) -> Expr {
         let mut vars = HashSet::new();
         self.generate_with_depth(0, range, &mut vars, rng)
     }
@@ -25,7 +25,7 @@ impl ExprGenerator {
     fn generate_with_depth<R: Rng>(
         &self,
         depth: usize,
-        range: &RangeInclusive<char>,
+        range: &[char],
         vars: &mut HashSet<char>,
         rng: &mut R,
     ) -> Expr {
@@ -79,8 +79,8 @@ impl ExprGenerator {
         }
     }
 
-    fn random_variable<R: Rng>(&self, range: &RangeInclusive<char>, rng: &mut R) -> char {
-        range.clone().choose(rng).unwrap()
+    fn random_variable<R: Rng>(&self, range: &[char], rng: &mut R) -> char {
+        range.iter().copied().choose(rng).unwrap()
     }
 }
 

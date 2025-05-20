@@ -4,30 +4,34 @@
 // on the input samples, and the results are printed out for each sample.
 // Import required modules and types
 
-use crate::{
-    data::{CharTokenizer, TextClassificationBatcher, TextClassificationDataset, Tokenizer},
-    model::TextClassificationModelConfig,
-    training::ExperimentConfig,
-};
+use std::{str::FromStr, sync::Arc};
+
 use burn::{
     data::dataloader::batcher::Batcher,
     prelude::*,
     record::{CompactRecorder, Recorder},
 };
-use std::{str::FromStr, sync::Arc};
+use mlml_util::MlmlConfig;
+
+use crate::{
+    data::{CharTokenizer, TextClassificationBatcher, TextClassificationDataset, Tokenizer},
+    model::TextClassificationModelConfig,
+    training::ExperimentConfig,
+};
 
 // Define inference function
 pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
     device: B::Device, // Device on which to perform computation (e.g., CPU or CUDA device)
     artifact_dir: &str, // Directory containing model and config files
     test_samples: Vec<(String, String)>, // Text samples for inference
+    mlml_config: MlmlConfig,
 ) {
     // Load experiment configuration
     let config = ExperimentConfig::load(format!("{artifact_dir}/config.json").as_str())
         .expect("Config file present");
 
     // Initialize tokenizer
-    let tokenizer = Arc::new(CharTokenizer::default());
+    let tokenizer = Arc::new(CharTokenizer::new(mlml_config.dataset.max_seq_length));
 
     // Get number of classes from dataset
     let n_classes = 2;
@@ -35,7 +39,7 @@ pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
     // Initialize batcher for batching samples
     let batcher = Arc::new(TextClassificationBatcher::new(
         tokenizer.clone(),
-        config.max_seq_length,
+        mlml_config.dataset.max_seq_length,
     ));
 
     // Load pre-trained model weights
@@ -50,7 +54,7 @@ pub fn infer<B: Backend, D: TextClassificationDataset + 'static>(
         config.transformer,
         n_classes,
         tokenizer.vocab_size(),
-        config.max_seq_length,
+        mlml_config.dataset.max_seq_length,
     )
     .init::<B>(&device)
     .load_record(record); // Initialize model with loaded weights

@@ -7,6 +7,8 @@ readme.workspace = true
 authors = ["ljedrz <ljedrz@gmail.com>"]
 
 [dependencies]
+mlml-util = { path = "../mlml-util" }
 rand = "0.9.1"
 rand_xorshift = "0.4.0"
 rusqlite = "0.34"
+serde_json = { workspace = true }

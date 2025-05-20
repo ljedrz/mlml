@@ -5,6 +5,8 @@
 // the TextClassificationDataset trait. These implementations are designed to be used
 // with a machine learning framework for tasks such as training a text classification model.
 
+use std::path::Path;
+
 use burn::data::dataset::{Dataset, SqliteDataset, SqliteDatasetStorage};
 
 // Define a struct for text classification items
@@ -44,23 +46,20 @@ impl Dataset<TextClassificationItem> for DeductiveReasoningDataset {
 }
 
 impl DeductiveReasoningDataset {
-    /// Returns the training portion of the dataset
-    pub fn train() -> Self {
-        Self::new("train")
-    }
-
-    /// Returns the testing portion of the dataset
-    pub fn validate() -> Self {
-        Self::new("valid")
-    }
-
-    /// Constructs the dataset from a split (either "train" or "test")
-    pub fn new(split: &str) -> Self {
+    pub fn new(db_path: &Path, split: &str) -> Self {
         let dataset: SqliteDataset<DeductiveReasoningItem> =
-            SqliteDatasetStorage::from_file("/home/ljedrz/git/ljedrz/mlml/mlml-dataset/dataset.db")
+            SqliteDatasetStorage::from_file(db_path)
                 .reader(split)
                 .unwrap();
         Self { dataset }
+    }
+
+    pub fn train(db_path: &Path) -> Self {
+        Self::new(db_path, "train")
+    }
+
+    pub fn validate(db_path: &Path) -> Self {
+        Self::new(db_path, "valid")
     }
 }
 

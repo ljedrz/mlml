@@ -2,16 +2,22 @@
 
 use burn::tensor::backend::Backend;
 use mlml_model::DeductiveReasoningDataset;
+use mlml_util::{MlmlConfig, config_path};
 
 #[cfg(not(feature = "f16"))]
 #[allow(dead_code)]
 type ElemType = f32;
 
-pub fn launch<B: Backend>(device: B::Device, test_samples: Vec<(String, String)>) {
+pub fn launch<B: Backend>(
+    device: B::Device,
+    mlml_config: MlmlConfig,
+    test_samples: Vec<(String, String)>,
+) {
     mlml_model::inference::infer::<B, DeductiveReasoningDataset>(
         device,
         "/tmp/mlml_model",
         test_samples,
+        mlml_config,
     );
 }
 
@@ -19,15 +25,18 @@ pub fn launch<B: Backend>(device: B::Device, test_samples: Vec<(String, String)>
 mod tch_cpu {
     use crate::{ElemType, launch};
     use burn::backend::libtorch::{LibTorch, LibTorchDevice};
+    use mlml_util::MlmlConfig;
 
-    pub fn run(test_samples: Vec<(String, String)>) {
-        launch::<LibTorch<ElemType>>(LibTorchDevice::Cpu, test_samples);
+    pub fn run(test_samples: Vec<(String, String)>, mlml_config: MlmlConfig) {
+        launch::<LibTorch<ElemType>>(LibTorchDevice::Cpu, mlml_config, test_samples);
     }
 }
 
 fn main() {
-    let connection =
-        rusqlite::Connection::open("/home/ljedrz/git/ljedrz/mlml/mlml-dataset/dataset.db").unwrap();
+    let config_str = std::fs::read_to_string(config_path()).unwrap();
+    let config: MlmlConfig = serde_json::from_str(&config_str).unwrap();
+
+    let connection = rusqlite::Connection::open(&config.dataset.db_path).unwrap();
     let query = "SELECT * FROM test";
     let mut stmt = connection.prepare(&query).unwrap();
     let mut rows = stmt.query([]).unwrap();
@@ -38,5 +47,5 @@ fn main() {
     }
 
     #[cfg(feature = "tch-cpu")]
-    tch_cpu::run(test_samples);
+    tch_cpu::run(test_samples, config);
 }

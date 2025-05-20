@@ -5,10 +5,8 @@
 // to build a learner, which is used to train the model. The trained model and the configuration are
 // then saved to the specified directory.
 
-use crate::{
-    data::{CharTokenizer, TextClassificationBatcher, TextClassificationDataset, Tokenizer},
-    model::TextClassificationModelConfig,
-};
+use std::sync::Arc;
+
 use burn::{
     data::{dataloader::DataLoaderBuilder, dataset::transform::SamplerDataset},
     lr_scheduler::cosine::CosineAnnealingLrSchedulerConfig,
@@ -25,23 +23,18 @@ use burn::{
         },
     },
 };
-use std::sync::Arc;
+use mlml_util::MlmlConfig;
+
+use crate::{
+    data::{CharTokenizer, TextClassificationBatcher, TextClassificationDataset, Tokenizer},
+    model::TextClassificationModelConfig,
+};
 
 // Define configuration struct for the experiment
 #[derive(Config)]
 pub struct ExperimentConfig {
     pub transformer: TransformerEncoderConfig,
     pub optimizer: AdamWConfig,
-    #[config(default = 256)]
-    pub max_seq_length: usize,
-    #[config(default = 32)]
-    pub batch_size: usize,
-    #[config(default = 20)]
-    pub num_epochs: usize,
-    #[config(default = 10_000)]
-    pub train_samples: usize,
-    #[config(default = 1_000)]
-    pub valid_samples: usize,
 }
 
 // Define train function
@@ -51,50 +44,65 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
     dataset_test: D,         // Testing dataset
     config: ExperimentConfig, // Experiment configuration
     artifact_dir: &str,      // Directory to save model and config files
+    mlml_config: MlmlConfig,
 ) {
     // Initialize tokenizer
-    let tokenizer = Arc::new(CharTokenizer::default());
+    let tokenizer = Arc::new(CharTokenizer::new(mlml_config.dataset.max_seq_length));
 
     // Initialize batcher
-    let batcher = TextClassificationBatcher::new(tokenizer.clone(), config.max_seq_length);
+    let batcher =
+        TextClassificationBatcher::new(tokenizer.clone(), mlml_config.dataset.max_seq_length);
 
     // Initialize model
     let model = TextClassificationModelConfig::new(
         config.transformer.clone(),
         2,
         tokenizer.vocab_size(),
-        config.max_seq_length,
+        mlml_config.dataset.max_seq_length,
     )
     .init::<B>(&devices[0]);
 
     // Initialize data loaders for training and testing data
     let dataloader_train = DataLoaderBuilder::new(batcher.clone())
-        .batch_size(config.batch_size)
+        .batch_size(mlml_config.training.batch_size)
         .num_workers(1)
         .shuffle(7777777) // FIXME
-        .build(SamplerDataset::new(dataset_train, config.train_samples));
+        .build(SamplerDataset::new(
+            dataset_train,
+            mlml_config.dataset.train_samples_count,
+        ));
     let dataloader_valid = DataLoaderBuilder::new(batcher)
-        .batch_size(config.batch_size)
+        .batch_size(mlml_config.training.batch_size)
         .num_workers(1)
         .shuffle(7777777) // FIXME
-        .build(SamplerDataset::new(dataset_test, config.valid_samples));
+        .build(SamplerDataset::new(
+            dataset_test,
+            mlml_config.dataset.valid_samples_count,
+        ));
 
     // Initialize optimizer
     let optim = config.optimizer.init();
 
     // Initialize learning rate scheduler
-    let iters = config.num_epochs * config.train_samples.div_ceil(config.batch_size);
-    let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(2e-4, iters)
-        .with_min_lr(1e-8)
-        .init()
-        .unwrap();
+    let iters = mlml_config.training.num_epochs
+        * mlml_config
+            .dataset
+            .train_samples_count
+            .div_ceil(mlml_config.training.batch_size);
+    let lr_scheduler =
+        CosineAnnealingLrSchedulerConfig::new(mlml_config.training.initial_lr, iters)
+            .with_min_lr(mlml_config.training.min_lr)
+            .init()
+            .unwrap();
 
     let early_stopping = MetricEarlyStoppingStrategy::new(
         &AccuracyMetric::<B>::new(),
         Aggregate::Mean,
         Direction::Highest,
         Split::Valid,
-        StoppingCondition::NoImprovementSince { n_epochs: 5 },
+        StoppingCondition::NoImprovementSince {
+            n_epochs: mlml_config.training.early_stopping_epochs,
+        },
     );
 
     // Initialize learner
@@ -107,7 +115,7 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
         .metric_train_numeric(LearningRateMetric::new())
         .with_file_checkpointer(CompactRecorder::new())
         .devices(devices)
-        .num_epochs(config.num_epochs)
+        .num_epochs(mlml_config.training.num_epochs)
         .early_stopping(early_stopping)
         .summary()
         .build(model, optim, lr_scheduler);

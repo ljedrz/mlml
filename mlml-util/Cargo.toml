@@ -1,0 +1,10 @@
+[package]
+name = "mlml-util"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+readme.workspace = true
+authors = ["ljedrz <ljedrz@gmail.com>"]
+
+[dependencies]
+serde = { version = "1.0.219", features = ["derive"] }
