@@ -17,15 +17,15 @@ const ALPHABET: &[&str] = &[
     "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s",
     "t", "u", "v", "w", "x", "y", "z",
 ];
-const MISC: &[&str] = &["[", "]", ":", ",", "(", ")"];
+const MISC: &[&str] = &["[", "]", ":", ",", ";", "(", ")"];
 const STRUCT: &[&str] = &[
     "<pad>",
-    "<state_start>",
-    "<state_end>",
-    "<assign_start>",
-    "<assign_end>",
-    "<expr_start>",
-    "<expr_end>",
+    "<state>",
+    "</state>",
+    "<assign>",
+    "</assign>",
+    "<expr>",
+    "</expr>",
     "<var_prefix>",
     "<operator_prefix>",
     "<value_prefix>",
@@ -80,7 +80,7 @@ impl CharTokenizer {
 
 impl Default for CharTokenizer {
     fn default() -> Self {
-        Self::new(60)
+        Self::new(100)
     }
 }
 
@@ -99,7 +99,7 @@ impl Tokenizer for CharTokenizer {
                 tokens.push(self.vocab["<value_prefix>"]);
                 tokens.push(self.vocab["true"]);
                 if in_assignment {
-                    tokens.push(self.vocab["<assign_end>"]);
+                    tokens.push(self.vocab["</assign>"]);
                     in_assignment = false;
                 }
                 i += 4;
@@ -107,7 +107,7 @@ impl Tokenizer for CharTokenizer {
                 tokens.push(self.vocab["<value_prefix>"]);
                 tokens.push(self.vocab["false"]);
                 if in_assignment {
-                    tokens.push(self.vocab["<assign_end>"]);
+                    tokens.push(self.vocab["</assign>"]);
                     in_assignment = false;
                 }
                 i += 5;
@@ -119,18 +119,18 @@ impl Tokenizer for CharTokenizer {
                 i += 1;
             } else if chars[i] == '[' {
                 in_state = true;
-                tokens.push(self.vocab["<state_start>"]);
+                tokens.push(self.vocab["<state>"]);
                 i += 1;
             } else if chars[i] == ']' {
-                tokens.push(self.vocab["<state_end>"]);
+                tokens.push(self.vocab["</state>"]);
                 in_state = false;
-                tokens.push(self.vocab["<expr_start>"]);
+                tokens.push(self.vocab["<expr>"]);
                 in_expr = true;
                 i += 1;
             } else if ALPHABET.contains(&&*chars[i].to_string()) {
-                if in_state {
+                if in_state && !in_assignment {
                     in_assignment = true;
-                    tokens.push(self.vocab["<assign_start>"]);
+                    tokens.push(self.vocab["<assign>"]);
                 }
                 tokens.push(self.vocab["<var_prefix>"]);
                 tokens.push(
@@ -154,9 +154,10 @@ impl Tokenizer for CharTokenizer {
         }
 
         if in_expr {
-            tokens.push(self.vocab["<expr_end>"]);
+            tokens.push(self.vocab["</expr>"]);
         }
 
+        assert!(tokens.len() <= self.max_seq_length);
         // Pad to max_seq_length
         while tokens.len() < self.max_seq_length {
             tokens.push(self.vocab["<pad>"]);
@@ -194,7 +195,7 @@ mod tests {
 
     #[test]
     fn tokenizer() {
-        let expr_with_state_str = "[m: false, q: false, t: true, t: true, t: false, w: true, x: false, y: false] (((w → t) ∧ (x ∧ t)) ∨ ((q → y) ∧ (m ↔ t)))";
+        let expr_with_state_str = "[i, f: true; g, j: false] ((g ∧ (¬j → i)) ∧ (f ∨ j))";
         let tokenizer = CharTokenizer::default();
         let tokens = tokenizer.encode(expr_with_state_str);
         let decoded = tokenizer.decode(&tokens);
