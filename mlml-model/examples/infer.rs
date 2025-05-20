@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 use burn::tensor::backend::Backend;
-use mlml_model::DeductiveReasoningDataset;
+use mlml_model::RawDataset;
 use mlml_util::{MlmlConfig, config_path};
 
 #[cfg(not(feature = "f16"))]
@@ -13,7 +13,7 @@ pub fn launch<B: Backend>(
     mlml_config: MlmlConfig,
     test_samples: Vec<(String, String)>,
 ) {
-    mlml_model::inference::infer::<B, DeductiveReasoningDataset>(
+    mlml_model::inference::infer::<B, RawDataset>(
         device,
         "/tmp/mlml_model",
         test_samples,
