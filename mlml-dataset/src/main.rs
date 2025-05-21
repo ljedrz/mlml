@@ -27,23 +27,26 @@ fn main() {
     let generator = ExprGenerator::new(config.dataset.max_depth, config.dataset.max_variables);
 
     let _ = std::fs::remove_file(&config.dataset.db_path);
-    let connection = rusqlite::Connection::open(&config.dataset.db_path).unwrap();
 
     let mut rng = XorShiftRng::from_rng(&mut rand::rng());
     let mut seen_all_entries = HashSet::new();
     let mut seen_all_structures = HashMap::new();
 
-    for ty in ["train", "valid", "test"] {
-        let wanted_num_samples = match ty {
-            "train" => config.dataset.train_samples_count,
-            "valid" => config.dataset.valid_samples_count,
-            "test" => config.dataset.test_samples_count,
-            _ => unreachable!(),
-        };
+    let mut samples = [HashSet::new(), HashSet::new(), HashSet::new()];
+    let mut next_wanted_results = [true, true, true];
+    let target_split_counts = &[
+        config.dataset.train_samples_count,
+        config.dataset.valid_samples_count,
+        config.dataset.test_samples_count,
+    ];
+    let mut done = vec![];
 
-        let mut wanted_result = true;
-        let mut split_samples = HashSet::new();
-        while split_samples.len() < wanted_num_samples {
+    while done.len() != 3 {
+        for (i, split_samples) in samples.iter_mut().enumerate() {
+            if done.contains(&i) {
+                continue;
+            }
+
             let range = ('a'..='z').choose_multiple(&mut rng, config.dataset.max_variables);
 
             let expr = generator.generate(&range, &mut rng);
@@ -51,8 +54,8 @@ fn main() {
             let ret = expr.evaluate(&state);
             let entry = Entry { expr, state, ret };
 
-            if ret == wanted_result && seen_all_entries.insert(entry.clone()) {
-                wanted_result = !ret;
+            if ret == next_wanted_results[i] && seen_all_entries.insert(entry.clone()) {
+                next_wanted_results[i] = !ret;
             } else {
                 continue;
             }
@@ -61,8 +64,20 @@ fn main() {
                 .entry(entry.expr.to_structure())
                 .or_default() += 1;
             split_samples.insert(entry);
-        }
 
+            if split_samples.len() == target_split_counts[i] {
+                done.push(i);
+            }
+        }
+    }
+
+    let connection = rusqlite::Connection::open(&config.dataset.db_path).unwrap();
+
+    for (split_samples, ty) in [
+        (&samples[0], "train"),
+        (&samples[1], "valid"),
+        (&samples[2], "test"),
+    ] {
         let table_creation_query = format!(
             "
             CREATE TABLE {ty} (
