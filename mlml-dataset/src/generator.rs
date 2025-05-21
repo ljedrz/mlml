@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
-use crate::parser::{BinaryOp, BinaryOpType, Expr};
 use rand::Rng;
 use rand::seq::IteratorRandom;
+
+use crate::expr::{BinaryOp, BinaryOpType, Expr};
 
 pub struct ExprGenerator {
     max_depth: usize,

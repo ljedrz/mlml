@@ -1,14 +1,17 @@
-mod eval;
+mod expr;
 mod generator;
 mod parser;
 
-use std::{collections::HashSet, fs};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+};
 
 use mlml_util::{MlmlConfig, config_path};
 use rand::{SeedableRng, seq::IteratorRandom};
 use rand_xorshift::XorShiftRng;
 
-use crate::{eval::evaluate, generator::*, parser::*};
+use crate::{expr::Expr, generator::*, parser::*};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct Entry {
@@ -26,61 +29,47 @@ fn main() {
     let _ = std::fs::remove_file(&config.dataset.db_path);
     let connection = rusqlite::Connection::open(&config.dataset.db_path).unwrap();
 
-    let mut seen_all = HashSet::new();
-
     let mut rng = XorShiftRng::from_rng(&mut rand::rng());
+    let mut seen_all_entries = HashSet::new();
+    let mut seen_all_structures = HashMap::new();
 
     for ty in ["train", "valid", "test"] {
-        let num_samples = match ty {
+        let wanted_num_samples = match ty {
             "train" => config.dataset.train_samples_count,
             "valid" => config.dataset.valid_samples_count,
             "test" => config.dataset.test_samples_count,
             _ => unreachable!(),
         };
 
-        let mut samples = HashSet::new();
-
-        let mut i = 0;
-        while i < num_samples * 3 / 2 {
+        let mut wanted_result = true;
+        let mut split_samples = HashSet::new();
+        while split_samples.len() < wanted_num_samples {
             let range = ('a'..='z').choose_multiple(&mut rng, config.dataset.max_variables);
 
             let expr = generator.generate(&range, &mut rng);
-            let expr_str = expr.to_string();
-            assert!(Parser::new(&expr_str).parse().is_ok());
-
             let state = generate_state(&expr, &mut rng);
-            let ret = evaluate(&expr, &state);
+            let ret = expr.evaluate(&state);
             let entry = Entry { expr, state, ret };
 
-            if !seen_all.insert(entry.clone()) {
+            if ret == wanted_result && seen_all_entries.insert(entry.clone()) {
+                wanted_result = !ret;
+            } else {
                 continue;
             }
 
-            samples.insert(entry);
-            i += 1;
+            *seen_all_structures
+                .entry(entry.expr.to_structure())
+                .or_default() += 1;
+            split_samples.insert(entry);
         }
-
-        let mut samples_normalized = HashSet::new();
-        samples_normalized.extend(
-            samples
-                .iter()
-                .filter(|e| e.ret)
-                .cloned()
-                .choose_multiple(&mut rng, num_samples / 2),
-        );
-        samples_normalized.extend(
-            samples
-                .iter()
-                .filter(|e| !e.ret)
-                .cloned()
-                .choose_multiple(&mut rng, num_samples / 2),
-        );
 
         let table_creation_query = format!(
             "
             CREATE TABLE {ty} (
                 expression TEXT,
                 result TEXT,
+                complexity INTEGER,
+                rarity REAL,
                 row_id INTEGER PRIMARY KEY
             )
         "
@@ -88,16 +77,24 @@ fn main() {
 
         connection.execute(&table_creation_query, ()).unwrap();
 
-        let mut data_query = format!("INSERT INTO {ty} (expression, result) VALUES ");
+        let mut data_query =
+            format!("INSERT INTO {ty} (expression, result, complexity, rarity) VALUES ");
 
-        let mut iter = samples_normalized.iter().peekable();
+        let mut iter = split_samples.iter().peekable();
         let mut row = String::new();
         while let Some(entry) = iter.next() {
+            let expr_str = entry.expr.to_string();
+            assert!(Parser::new(&expr_str).parse().is_ok());
+
             row.push_str(&format!(
-                "('{} {}', '{}')",
+                "('{} {}', '{}', {}, {})",
                 stringify_state(&entry.state),
-                entry.expr.to_string(),
-                entry.ret
+                expr_str,
+                entry.ret,
+                entry.expr.complexity(),
+                entry
+                    .expr
+                    .rarity(seen_all_entries.len(), &seen_all_structures),
             ));
             if iter.peek().is_some() {
                 row.push_str(", ");

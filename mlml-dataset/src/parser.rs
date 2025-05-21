@@ -1,52 +1,6 @@
 use std::iter::Peekable;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Expr {
-    Var(char),
-    Not(Box<Expr>),
-    BinaryOp(Box<BinaryOp>),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum BinaryOpType {
-    And,
-    Or,
-    Implies,
-    Equivalent,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BinaryOp {
-    pub ty: BinaryOpType,
-    pub l: Expr,
-    pub r: Expr,
-}
-
-impl BinaryOp {
-    pub fn new(ty: BinaryOpType, l: Expr, r: Expr) -> Self {
-        Self { ty, l, r }
-    }
-}
-
-impl Expr {
-    pub fn to_string(&self) -> String {
-        match self {
-            Expr::Var(s) => s.to_string(),
-            Expr::Not(e) => format!("¬{}", e.to_string()),
-            Expr::BinaryOp(bop) => {
-                let (l, r) = (bop.l.to_string(), bop.r.to_string());
-                match bop.ty {
-                    BinaryOpType::And => format!("({} ∧ {})", l, r),
-                    BinaryOpType::Or => format!("({} ∨ {})", l, r),
-                    BinaryOpType::Implies => format!("({} → {})", l, r),
-                    BinaryOpType::Equivalent => {
-                        format!("({} ↔ {})", l, r)
-                    }
-                }
-            }
-        }
-    }
-}
+use crate::expr::{BinaryOp, BinaryOpType, Expr};
 
 pub struct Parser<'a> {
     chars: Peekable<std::str::Chars<'a>>,

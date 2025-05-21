@@ -11,7 +11,7 @@ type ElemType = f32;
 pub fn launch<B: Backend>(
     device: B::Device,
     mlml_config: MlmlConfig,
-    test_samples: Vec<(String, String)>,
+    test_samples: Vec<(String, String, usize, f32)>,
 ) {
     mlml_model::inference::infer::<B, RawDataset>(
         device,
@@ -27,7 +27,7 @@ mod tch_cpu {
     use burn::backend::libtorch::{LibTorch, LibTorchDevice};
     use mlml_util::MlmlConfig;
 
-    pub fn run(test_samples: Vec<(String, String)>, mlml_config: MlmlConfig) {
+    pub fn run(test_samples: Vec<(String, String, usize, f32)>, mlml_config: MlmlConfig) {
         launch::<LibTorch<ElemType>>(LibTorchDevice::Cpu, mlml_config, test_samples);
     }
 }
@@ -43,7 +43,12 @@ fn main() {
 
     let mut test_samples = Vec::new();
     while let Some(row) = rows.next().unwrap() {
-        test_samples.push((row.get(0).unwrap(), row.get(1).unwrap()));
+        test_samples.push((
+            row.get(0).unwrap(),
+            row.get(1).unwrap(),
+            row.get(2).unwrap(),
+            row.get(3).unwrap(),
+        ));
     }
 
     #[cfg(feature = "tch-cpu")]

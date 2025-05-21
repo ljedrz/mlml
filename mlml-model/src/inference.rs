@@ -22,7 +22,7 @@ use crate::{
 pub fn infer<B: Backend, D: MlmlDataset + 'static>(
     device: B::Device, // Device on which to perform computation (e.g., CPU or CUDA device)
     artifact_dir: &str, // Directory containing model and config files
-    test_samples: Vec<(String, String)>, // Text samples for inference
+    test_samples: Vec<(String, String, usize, f32)>, // Text samples for inference
     mlml_config: MlmlConfig,
 ) {
     // Load experiment configuration
@@ -61,14 +61,14 @@ pub fn infer<B: Backend, D: MlmlDataset + 'static>(
     // Run inference on the given text samples
     println!("Running inference ...");
     let item = batcher.batch(
-        test_samples.iter().map(|(expr, _)| expr.clone()).collect(),
+        test_samples.iter().map(|(expr, ..)| expr.clone()).collect(),
         &device,
     ); // Batch samples using the batcher
     let predictions = model.infer(item); // Get model predictions
 
     // Print out predictions for each sample
     let mut misses = Vec::new();
-    for (i, (expr, expected_ret)) in test_samples.iter().enumerate() {
+    for (i, (expr, expected_ret, complexity, rarity)) in test_samples.iter().enumerate() {
         #[allow(clippy::single_range_in_vec_init)]
         let prediction = predictions.clone().slice([i..i + 1]); // Get prediction for current sample
         let logits = prediction.to_data(); // Convert prediction tensor to data
@@ -83,17 +83,23 @@ pub fn infer<B: Backend, D: MlmlDataset + 'static>(
 
         let expected: bool = FromStr::from_str(&expected_ret).unwrap();
         if class != expected {
-            misses.push((i, expr));
+            misses.push((i, expr, complexity, rarity));
         }
     }
 
-    println!();
-    for (i, miss) in &misses {
-        println!("{i}: {miss}");
+    let mut complexity_sum = 0;
+    let mut rarity_sum = 0.0;
+    for (_i, _miss, complexity, rarity) in &misses {
+        complexity_sum += *complexity;
+        rarity_sum += *rarity;
     }
+
+    println!();
     println!(
-        "\nmisses: {} ({}%)",
+        "\nmisses: {} ({}%); avg. complexity: {}, avg. rarity: {}",
         misses.len(),
-        (misses.len() as f64 / test_samples.len() as f64) * 100.0
+        (misses.len() as f64 / test_samples.len() as f64) * 100.0,
+        complexity_sum as f32 / misses.len() as f32,
+        rarity_sum / misses.len() as f32,
     );
 }

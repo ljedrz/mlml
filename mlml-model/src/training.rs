@@ -65,7 +65,6 @@ pub fn train<B: AutodiffBackend, D: MlmlDataset + 'static>(
     let dataloader_train = DataLoaderBuilder::new(batcher.clone())
         .batch_size(mlml_config.training.batch_size)
         .num_workers(1)
-        .shuffle(7777777) // FIXME
         .build(SamplerDataset::new(
             dataset_train,
             mlml_config.dataset.train_samples_count,
@@ -73,7 +72,6 @@ pub fn train<B: AutodiffBackend, D: MlmlDataset + 'static>(
     let dataloader_valid = DataLoaderBuilder::new(batcher)
         .batch_size(mlml_config.training.batch_size)
         .num_workers(1)
-        .shuffle(7777777) // FIXME
         .build(SamplerDataset::new(
             dataset_valid,
             mlml_config.dataset.valid_samples_count,
