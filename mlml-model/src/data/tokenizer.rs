@@ -20,8 +20,6 @@ const ALPHABET: &[&str] = &[
 const MISC: &[&str] = &["[", "]", ":", ",", "(", ")"];
 const STRUCT: &[&str] = &[
     "<pad>",
-    "<state>",
-    "</state>",
     "<assign>",
     "</assign>",
     "<expr>",
@@ -113,10 +111,10 @@ impl Tokenizer for MlmlTokenizer {
                 i += 1;
             } else if chars[i] == '[' {
                 in_state = true;
-                tokens.push(self.vocab["<state>"]);
+                tokens.push(self.vocab["["]);
                 i += 1;
             } else if chars[i] == ']' {
-                tokens.push(self.vocab["</state>"]);
+                tokens.push(self.vocab["]"]);
                 in_state = false;
                 tokens.push(self.vocab["<expr>"]);
                 in_expr = true;
