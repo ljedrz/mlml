@@ -22,8 +22,6 @@ const STRUCT: &[&str] = &[
     "<pad>",
     "<assign>",
     "</assign>",
-    "<expr>",
-    "</expr>",
     "<var_prefix>",
     "<operator_prefix>",
     "<value_prefix>",
@@ -116,7 +114,7 @@ impl Tokenizer for MlmlTokenizer {
             } else if chars[i] == ']' {
                 tokens.push(self.vocab["]"]);
                 in_state = false;
-                tokens.push(self.vocab["<expr>"]);
+                tokens.push(self.vocab["("]);
                 in_expr = true;
                 i += 1;
             } else if ALPHABET.contains(&&*chars[i].to_string()) {
@@ -146,7 +144,7 @@ impl Tokenizer for MlmlTokenizer {
         }
 
         if in_expr {
-            tokens.push(self.vocab["</expr>"]);
+            tokens.push(self.vocab[")"]);
         }
 
         assert!(tokens.len() <= self.max_seq_length);

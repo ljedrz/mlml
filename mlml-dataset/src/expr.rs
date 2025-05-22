@@ -30,19 +30,24 @@ impl BinaryOp {
 
 impl Expr {
     pub fn to_string(&self) -> String {
+        self._to_string(false)
+    }
+
+    pub fn _to_string(&self, is_deep: bool) -> String {
         match self {
             Expr::Var(s) => s.to_string(),
-            Expr::Not(e) => format!("¬{}", e.to_string()),
+            Expr::Not(e) => format!("¬{}", e._to_string(true)),
             Expr::BinaryOp(bop) => {
-                let (l, r) = (bop.l.to_string(), bop.r.to_string());
-                match bop.ty {
-                    BinaryOpType::And => format!("({} ∧ {})", l, r),
-                    BinaryOpType::Or => format!("({} ∨ {})", l, r),
-                    BinaryOpType::Implies => format!("({} → {})", l, r),
+                let (l, r) = (bop.l._to_string(true), bop.r._to_string(true));
+                let inner = match bop.ty {
+                    BinaryOpType::And => format!("{} ∧ {}", l, r),
+                    BinaryOpType::Or => format!("{} ∨ {}", l, r),
+                    BinaryOpType::Implies => format!("{} → {}", l, r),
                     BinaryOpType::Equivalent => {
-                        format!("({} ↔ {})", l, r)
+                        format!("{} ↔ {}", l, r)
                     }
-                }
+                };
+                if is_deep { format!("({inner})") } else { inner }
             }
         }
     }
