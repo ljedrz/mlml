@@ -78,14 +78,16 @@ pub fn infer<B: Backend, D: MlmlDataset + 'static>(
         let class_index = prediction.argmax(1).squeeze::<1>(1).into_scalar(); // Get class index with the highest value
         let class = (class_index.elem::<i32>() as usize) == 1; // Get class name
 
+        let correct = <bool>::from_str(&expected_ret).unwrap() == class;
+        let marker = if correct { "" } else { "in" };
+
         // Print sample text, predicted logits and predicted class
         println!(
             "\n=== Item {i} ===\n- Expr: {expr}\n- Logits: {logits}\n- Prediction: \
-             {class}\n================"
+             {class} ({marker}correct)\n================"
         );
 
-        let expected: bool = FromStr::from_str(&expected_ret).unwrap();
-        if class != expected {
+        if !correct {
             misses.push((i, expr, complexity, rarity));
         }
     }
@@ -104,5 +106,9 @@ pub fn infer<B: Backend, D: MlmlDataset + 'static>(
         (misses.len() as f64 / test_samples.len() as f64) * 100.0,
         complexity_sum as f32 / misses.len() as f32,
         rarity_sum / misses.len() as f32,
+    );
+    println!(
+        "min complexity: {}",
+        misses.iter().map(|m| m.2).min().unwrap()
     );
 }
