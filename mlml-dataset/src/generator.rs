@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use rand::Rng;
-use rand::seq::IteratorRandom;
+use rand::seq::{IndexedRandom, IteratorRandom};
 
 use crate::expr::{BinaryOp, BinaryOpType, Expr};
 
@@ -30,7 +30,7 @@ impl ExprGenerator {
         vars: &mut HashSet<char>,
         rng: &mut R,
     ) -> Expr {
-        if depth >= self.max_depth || rng.random_bool(0.7) {
+        if depth >= self.max_depth {
             let var = if vars.len() < self.max_vars {
                 let v = self.random_variable(range, rng);
                 vars.insert(v);
@@ -42,8 +42,8 @@ impl ExprGenerator {
             return Expr::Var(var);
         }
 
-        let choices = ["var", "not", "and", "or", "impl", "equiv"];
-        let choice = choices.iter().choose(rng).unwrap();
+        let choices = [("var", 5), ("not", 1), ("and", 1), ("or", 1), ("impl", 3), ("equiv", 1)];
+        let choice = choices.choose_weighted(rng, |(_, w)| *w).map(|(c, _)| c).unwrap();
 
         match &**choice {
             "var" => {
