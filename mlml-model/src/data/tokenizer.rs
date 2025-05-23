@@ -85,7 +85,7 @@ impl Tokenizer for MlmlTokenizer {
         let mut in_assignment = false;
 
         while i < chars.len() {
-            if i + 3 < chars.len() && &chars[i..i + 4] == ['t', 'r', 'u', 'e'] {
+            if i + 3 < chars.len() && chars[i..i + 4] == ['t', 'r', 'u', 'e'] {
                 tokens.push(self.vocab["<value_prefix>"]);
                 tokens.push(self.vocab["true"]);
                 if in_assignment {
@@ -93,7 +93,7 @@ impl Tokenizer for MlmlTokenizer {
                     in_assignment = false;
                 }
                 i += 4;
-            } else if i + 4 < chars.len() && &chars[i..i + 5] == ['f', 'a', 'l', 's', 'e'] {
+            } else if i + 4 < chars.len() && chars[i..i + 5] == ['f', 'a', 'l', 's', 'e'] {
                 tokens.push(self.vocab["<value_prefix>"]);
                 tokens.push(self.vocab["false"]);
                 if in_assignment {
@@ -131,7 +131,7 @@ impl Tokenizer for MlmlTokenizer {
                     self.vocab
                         .get(&var)
                         .copied()
-                        .expect(&format!("missing token: '{}'", chars[i])),
+                        .unwrap_or_else(|| panic!("missing token: '{}'", chars[i])),
                 );
                 i += 1;
             } else {
@@ -141,7 +141,7 @@ impl Tokenizer for MlmlTokenizer {
                     self.vocab
                         .get(&c)
                         .copied()
-                        .expect(&format!("missing token: '{c}'")),
+                        .unwrap_or_else(|| panic!("missing token: '{c}'")),
                 );
                 i += 1;
             }
@@ -166,7 +166,7 @@ impl Tokenizer for MlmlTokenizer {
             .map(|&id| {
                 self.inv_vocab
                     .get(&id)
-                    .expect(&format!("missing token id: '{id}'"))
+                    .unwrap_or_else(|| panic!("missing token id: '{id}'"))
                     .clone()
             })
             .collect::<Vec<SmolStr>>()
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn tokenizer() {
         let expr_with_state_str = "[i, f: true; g, j: false] ((g ∧ (¬j → i)) ∧ (f ∨ j))";
-        let tokenizer = MlmlTokenizer::new(64);
+        let tokenizer = MlmlTokenizer::new(64, 4);
         let tokens = tokenizer.encode(expr_with_state_str);
         let decoded = tokenizer.decode(&tokens);
         println!("{decoded}");

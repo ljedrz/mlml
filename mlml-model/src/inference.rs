@@ -78,7 +78,7 @@ pub fn infer<B: Backend, D: MlmlDataset + 'static>(
         let class_index = prediction.argmax(1).squeeze::<1>(1).into_scalar(); // Get class index with the highest value
         let class = (class_index.elem::<i32>() as usize) == 1; // Get class name
 
-        let correct = <bool>::from_str(&expected_ret).unwrap() == class;
+        let correct = <bool>::from_str(expected_ret).unwrap() == class;
         let marker = if correct { "" } else { "in" };
 
         // Print sample text, predicted logits and predicted class
