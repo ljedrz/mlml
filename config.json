@@ -5,12 +5,12 @@
     "test_samples_count": 5000,
     "max_seq_length": 100,
     "max_variables": 5,
-    "max_depth": 3,
+    "max_depth": 2,
     "db_path": "/tmp/dataset.db"
   },
   "model": {
     "d_model": 256,
-    "d_ff": 128,
+    "d_ff": 64,
     "n_heads": 4,
     "n_layers": 2,
 
@@ -22,7 +22,7 @@
     "initial_lr": 0.0002,
     "min_lr": 1e-8,
 
-    "batch_size": 32,
+    "batch_size": 64,
     "num_epochs": 20,
     "early_stopping_epochs": 5
   }
