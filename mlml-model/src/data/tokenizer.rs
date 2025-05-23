@@ -4,25 +4,22 @@
 
 use std::collections::HashMap;
 
+use smol_str::{SmolStr, ToSmolStr};
+
 #[derive(Debug)]
 pub struct MlmlTokenizer {
-    vocab: HashMap<String, usize>,     // Token to ID
-    inv_vocab: HashMap<usize, String>, // ID to token
+    vocab: HashMap<SmolStr, usize>,     // Token to ID
+    inv_vocab: HashMap<usize, SmolStr>, // ID to token
     max_seq_length: usize,
 }
 
 const VALUES: &[&str] = &["true", "false"];
 const OPERATORS: &[&str] = &["∧", "∨", "¬", "→", "↔"];
-const ALPHABET: &[&str] = &[
-    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s",
-    "t", "u", "v", "w", "x", "y", "z",
-];
 const MISC: &[&str] = &["[", "]", ":", ",", "(", ")"];
 const STRUCT: &[&str] = &[
     "<pad>",
     "<assign>",
     "</assign>",
-    "<var_prefix>",
     "<operator_prefix>",
     "<value_prefix>",
 ];
@@ -49,22 +46,24 @@ pub trait Tokenizer: Send + Sync {
 }
 
 impl MlmlTokenizer {
-    pub fn new(max_seq_length: usize) -> Self {
-        let mut tokens = STRUCT.to_vec();
-        tokens.extend_from_slice(MISC);
-        tokens.extend_from_slice(VALUES);
-        tokens.extend_from_slice(OPERATORS);
-        tokens.extend_from_slice(ALPHABET);
+    pub fn new(max_seq_length: usize, max_vars: usize) -> Self {
+        let mut tokens = Vec::new();
+        tokens.extend(STRUCT.iter().map(|s| SmolStr::new_inline(s)));
+        tokens.extend(MISC.iter().map(|s| SmolStr::new_inline(s)));
+        tokens.extend(VALUES.iter().map(|s| SmolStr::new_inline(s)));
+        tokens.extend(OPERATORS.iter().map(|s| SmolStr::new_inline(s)));
+        let vars = (0..max_vars).map(|n| SmolStr::from(format!("<var{n}>")));
+        tokens.extend(vars);
 
         let vocab = tokens
             .iter()
             .enumerate()
-            .map(|(i, &t)| (t.to_string(), i))
+            .map(|(i, t)| (t.clone(), i))
             .collect();
         let inv_vocab = tokens
             .iter()
             .enumerate()
-            .map(|(i, &t)| (i, t.to_string()))
+            .map(|(i, t)| (i, t.clone()))
             .collect();
         MlmlTokenizer {
             vocab,
@@ -79,6 +78,7 @@ impl Tokenizer for MlmlTokenizer {
         let mut tokens = Vec::new();
         let mut i = 0;
         let chars: Vec<char> = input.chars().collect();
+        let mut vars: HashMap<char, usize> = Default::default();
 
         let mut in_state = false;
         let mut in_expr = false;
@@ -101,9 +101,9 @@ impl Tokenizer for MlmlTokenizer {
                     in_assignment = false;
                 }
                 i += 5;
-            } else if OPERATORS.contains(&&*chars[i].to_string()) {
+            } else if OPERATORS.contains(&&*chars[i].to_smolstr()) {
                 tokens.push(self.vocab["<operator_prefix>"]);
-                tokens.push(self.vocab[&chars[i].to_string()]);
+                tokens.push(self.vocab[&chars[i].to_smolstr()]);
                 i += 1;
             } else if chars[i].is_whitespace() || chars[i] == ';' {
                 i += 1;
@@ -117,22 +117,26 @@ impl Tokenizer for MlmlTokenizer {
                 tokens.push(self.vocab["("]);
                 in_expr = true;
                 i += 1;
-            } else if ALPHABET.contains(&&*chars[i].to_string()) {
+            } else if chars[i].is_alphabetic() {
                 if in_state && !in_assignment {
                     in_assignment = true;
                     tokens.push(self.vocab["<assign>"]);
                 }
-                tokens.push(self.vocab["<var_prefix>"]);
+                if !vars.contains_key(&chars[i]) {
+                    let pos = vars.len();
+                    vars.insert(chars[i], pos);
+                }
+                let var = SmolStr::from(format!("<var{}>", vars.get(&chars[i]).unwrap()));
                 tokens.push(
                     self.vocab
-                        .get(&chars[i].to_string())
+                        .get(&var)
                         .copied()
                         .expect(&format!("missing token: '{}'", chars[i])),
                 );
                 i += 1;
             } else {
                 // Remaining single-char tokens
-                let c = chars[i].to_string();
+                let c = chars[i].to_smolstr();
                 tokens.push(
                     self.vocab
                         .get(&c)
@@ -165,7 +169,7 @@ impl Tokenizer for MlmlTokenizer {
                     .expect(&format!("missing token id: '{id}'"))
                     .clone()
             })
-            .collect::<Vec<String>>()
+            .collect::<Vec<SmolStr>>()
             .join(" ")
     }
 

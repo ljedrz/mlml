@@ -30,7 +30,10 @@ pub fn infer<B: Backend, D: MlmlDataset + 'static>(
         .expect("Config file present");
 
     // Initialize tokenizer
-    let tokenizer = Arc::new(MlmlTokenizer::new(mlml_config.dataset.max_seq_length));
+    let tokenizer = Arc::new(MlmlTokenizer::new(
+        mlml_config.dataset.max_seq_length,
+        mlml_config.dataset.max_variables,
+    ));
 
     // Get number of classes from dataset
     let n_classes = 2;

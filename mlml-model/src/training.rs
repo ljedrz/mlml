@@ -47,7 +47,10 @@ pub fn train<B: AutodiffBackend, D: MlmlDataset + 'static>(
     mlml_config: MlmlConfig,
 ) {
     // Initialize tokenizer
-    let tokenizer = Arc::new(MlmlTokenizer::new(mlml_config.dataset.max_seq_length));
+    let tokenizer = Arc::new(MlmlTokenizer::new(
+        mlml_config.dataset.max_seq_length,
+        mlml_config.dataset.max_variables,
+    ));
 
     // Initialize batcher
     let batcher = MlmlBatcher::new(tokenizer.clone(), mlml_config.dataset.max_seq_length);

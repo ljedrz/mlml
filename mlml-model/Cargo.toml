@@ -27,4 +27,5 @@ mlml-util = { path = "../mlml-util" }
 rusqlite = "0.34"
 serde = { version = "1.0.218", features = ["std", "derive"] }
 serde_json = { workspace = true }
+smol_str = "0.3.2"
 unicode-segmentation = "1.12"
