@@ -2,7 +2,7 @@
 
 This repository contains a reimplementation of the [Text Classification](https://github.com/tracel-ai/burn/tree/main/examples/text-classification)
 example from the excellent [Burn Deep Learning Framework](https://burn.dev). Instead of classifying
-text, it can evaluate stateful expressions in a subset of propositional logic with ~98% accuracy.
+text, it can evaluate stateful expressions in a subset of propositional logic with >99% accuracy.
 
 Example expressions:
 
@@ -21,7 +21,7 @@ validation, and test sets.
 
 [mlml-model](https://github.com/ljedrz/mlml/tree/master/mlml-model) contains a CPU-backed
 implementation of a simple transformer-based model that's designed to be used with the
-aforementioned datased. The training is quite quick (~3min) on a reasonably beefy CPU.
+aforementioned datased. The training is quite quick (~5min) on a reasonably beefy CPU.
 
 ```
 cargo run --example train --release // train the model using the training and validation splits
