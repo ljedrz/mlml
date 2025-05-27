@@ -11,7 +11,7 @@ use burn::{
         transformer::{TransformerEncoder, TransformerEncoderConfig, TransformerEncoderInput},
     },
     prelude::*,
-    tensor::{activation::softmax, backend::AutodiffBackend},
+    tensor::{activation::gelu, backend::AutodiffBackend},
     train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
 };
 
@@ -129,7 +129,7 @@ impl<B: Backend> MlmlModel<B> {
             .slice([0..batch_size, 0..1])
             .reshape([batch_size, self.n_classes]);
 
-        softmax(output, 1)
+        gelu(output)
     }
 }
 
