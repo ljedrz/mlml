@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
             '→' => BinaryOpType::Implies,
             '↔' => BinaryOpType::Equivalent,
             _ => {
-                return Err(format!("Unknown operator: {}", op));
+                return Err(format!("Unknown operator: {op}"));
             }
         };
 
@@ -86,8 +86,8 @@ impl<'a> Parser<'a> {
     fn expect(&mut self, expected: char) -> Result<(), String> {
         match self.next_char()? {
             Some(c) if c == expected => Ok(()),
-            Some(c) => Err(format!("Expected '{}', got '{}'", expected, c)),
-            None => Err(format!("Expected '{}', got EOF", expected)),
+            Some(c) => Err(format!("Expected '{expected}', got '{c}'")),
+            None => Err(format!("Expected '{expected}', got EOF")),
         }
     }
 }

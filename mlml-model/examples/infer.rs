@@ -38,7 +38,7 @@ fn main() {
 
     let connection = rusqlite::Connection::open(&config.dataset.db_path).unwrap();
     let query = "SELECT * FROM test";
-    let mut stmt = connection.prepare(&query).unwrap();
+    let mut stmt = connection.prepare(query).unwrap();
     let mut rows = stmt.query([]).unwrap();
 
     let mut test_samples = Vec::new();

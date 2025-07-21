@@ -42,8 +42,18 @@ impl ExprGenerator {
             return Expr::Var(var);
         }
 
-        let choices = [("var", 5), ("not", 1), ("and", 1), ("or", 1), ("impl", 3), ("equiv", 1)];
-        let choice = choices.choose_weighted(rng, |(_, w)| *w).map(|(c, _)| c).unwrap();
+        let choices = [
+            ("var", 5),
+            ("not", 1),
+            ("and", 1),
+            ("or", 1),
+            ("impl", 3),
+            ("equiv", 1),
+        ];
+        let choice = choices
+            .choose_weighted(rng, |(_, w)| *w)
+            .map(|(c, _)| c)
+            .unwrap();
 
         match &**choice {
             "var" => {
