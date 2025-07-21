@@ -13,7 +13,7 @@ flex32 = []
 tch-cpu = ["burn/tch"]
 
 [dependencies]
-burn = { version = "0.17", features = [
+burn = { version = "0.18", features = [
     "train",
     "tui",
     "sqlite-bundled",
@@ -24,8 +24,8 @@ burn = { version = "0.17", features = [
 ], default-features = false }
 derive-new = { version = "0.7.0", default-features = false }
 mlml-util = { path = "../mlml-util" }
-rusqlite = "0.34"
-serde = { version = "1.0.218", features = ["std", "derive"] }
+rusqlite = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 smol_str = "0.3.2"
 unicode-segmentation = "1.12"
