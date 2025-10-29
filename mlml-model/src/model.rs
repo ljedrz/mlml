@@ -16,7 +16,7 @@ use burn::{
 };
 
 // Define the model configuration
-#[derive(Config)]
+#[derive(Debug, Config)]
 pub struct MlmlModelConfig {
     transformer: TransformerEncoderConfig,
     n_classes: usize,

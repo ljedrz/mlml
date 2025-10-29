@@ -16,7 +16,7 @@ use burn::{
     record::{CompactRecorder, Recorder},
     tensor::backend::AutodiffBackend,
     train::{
-        LearnerBuilder, MetricEarlyStoppingStrategy, StoppingCondition,
+        LearnerBuilder, LearningStrategy, MetricEarlyStoppingStrategy, StoppingCondition,
         metric::{
             AccuracyMetric, IterationSpeedMetric, LearningRateMetric, LossMetric,
             store::{Aggregate, Direction, Split},
@@ -31,7 +31,7 @@ use crate::{
 };
 
 // Define configuration struct for the experiment
-#[derive(Config)]
+#[derive(Debug, Config)]
 pub struct ExperimentConfig {
     pub transformer: TransformerEncoderConfig,
     pub optimizer: AdamWConfig,
@@ -114,20 +114,20 @@ pub fn train<B: AutodiffBackend, D: MlmlDataset + 'static>(
         .metric_valid_numeric(AccuracyMetric::new())
         .metric_train_numeric(LearningRateMetric::new())
         .with_file_checkpointer(CompactRecorder::new())
-        .devices(devices)
+        .learning_strategy(LearningStrategy::MultiDeviceNaive(devices))
         .num_epochs(mlml_config.training.num_epochs)
         .early_stopping(early_stopping)
         .summary()
         .build(model, optim, lr_scheduler);
 
     // Train the model
-    let model_trained = learner.fit(dataloader_train, dataloader_valid);
+    let result = learner.fit(dataloader_train, dataloader_valid);
 
     // Save the configuration and the trained model
     config.save(format!("{artifact_dir}/config.json")).unwrap();
     CompactRecorder::new()
         .record(
-            model_trained.into_record(),
+            result.model.into_record(),
             format!("{artifact_dir}/model").into(),
         )
         .unwrap();

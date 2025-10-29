@@ -13,7 +13,7 @@ flex32 = []
 tch-cpu = ["burn/tch"]
 
 [dependencies]
-burn = { version = "0.18", features = [
+burn = { version = "0.19", features = [
     "train",
     "tui",
     "sqlite-bundled",
