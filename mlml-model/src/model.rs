@@ -12,7 +12,7 @@ use burn::{
     },
     prelude::*,
     tensor::{activation::gelu, backend::AutodiffBackend},
-    train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
+    train::{ClassificationOutput, InferenceStep, TrainOutput, TrainStep},
 };
 
 // Define the model configuration
@@ -134,7 +134,10 @@ impl<B: Backend> MlmlModel<B> {
 }
 
 /// Define training step
-impl<B: AutodiffBackend> TrainStep<TrainingBatch<B>, ClassificationOutput<B>> for MlmlModel<B> {
+impl<B: AutodiffBackend> TrainStep for MlmlModel<B> {
+    type Input = TrainingBatch<B>;
+    type Output = ClassificationOutput<B>;
+
     fn step(&self, item: TrainingBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
         // Run forward pass, calculate gradients and return them along with the output
         let item = self.forward(item);
@@ -145,7 +148,10 @@ impl<B: AutodiffBackend> TrainStep<TrainingBatch<B>, ClassificationOutput<B>> fo
 }
 
 /// Define validation step
-impl<B: Backend> ValidStep<TrainingBatch<B>, ClassificationOutput<B>> for MlmlModel<B> {
+impl<B: Backend> InferenceStep for MlmlModel<B> {
+    type Input = TrainingBatch<B>;
+    type Output = ClassificationOutput<B>;
+
     fn step(&self, item: TrainingBatch<B>) -> ClassificationOutput<B> {
         // Run forward pass and return the output
         self.forward(item)

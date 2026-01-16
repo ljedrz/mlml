@@ -16,7 +16,7 @@ use burn::{
     record::{CompactRecorder, Recorder},
     tensor::backend::AutodiffBackend,
     train::{
-        LearnerBuilder, LearningStrategy, MetricEarlyStoppingStrategy, StoppingCondition,
+        Learner, MetricEarlyStoppingStrategy, StoppingCondition, SupervisedTraining,
         metric::{
             AccuracyMetric, IterationSpeedMetric, LearningRateMetric, LossMetric,
             store::{Aggregate, Direction, Split},
@@ -105,8 +105,8 @@ pub fn train<B: AutodiffBackend, D: MlmlDataset + 'static>(
         },
     );
 
-    // Initialize learner
-    let learner = LearnerBuilder::new(artifact_dir)
+    // Initialize training
+    let training = SupervisedTraining::new(artifact_dir, dataloader_train, dataloader_valid)
         .metric_train(IterationSpeedMetric::new())
         .metric_train_numeric(LossMetric::new())
         .metric_valid_numeric(LossMetric::new())
@@ -114,14 +114,12 @@ pub fn train<B: AutodiffBackend, D: MlmlDataset + 'static>(
         .metric_valid_numeric(AccuracyMetric::new())
         .metric_train_numeric(LearningRateMetric::new())
         .with_file_checkpointer(CompactRecorder::new())
-        .learning_strategy(LearningStrategy::MultiDeviceNaive(devices))
         .num_epochs(mlml_config.training.num_epochs)
         .early_stopping(early_stopping)
-        .summary()
-        .build(model, optim, lr_scheduler);
+        .summary();
 
     // Train the model
-    let result = learner.fit(dataloader_train, dataloader_valid);
+    let result = training.launch(Learner::new(model, optim, lr_scheduler));
 
     // Save the configuration and the trained model
     config.save(format!("{artifact_dir}/config.json")).unwrap();
